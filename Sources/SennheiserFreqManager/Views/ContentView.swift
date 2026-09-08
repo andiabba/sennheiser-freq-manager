@@ -1,14 +1,91 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ContentView: View {
     @EnvironmentObject var appState: AppState
     @State private var showAddDevice = false
-    @State private var showFileImporter = false
 
     var body: some View {
-        NavigationSplitView {
+        HStack(spacing: 0) {
             sidebar
-        } detail: {
+            Divider()
+            detailView
+        }
+        .sheet(isPresented: $showAddDevice) {
+            AddDeviceView()
+        }
+    }
+
+    private var sidebar: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text("Transmitters")
+                    .font(.headline)
+                Spacer()
+                Button {
+                    showAddDevice = true
+                } label: {
+                    Image(systemName: "plus")
+                }
+                .buttonStyle(.borderless)
+
+                Button {
+                    appState.startDiscovery()
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .buttonStyle(.borderless)
+                .disabled(appState.isScanning)
+            }
+            .padding(12)
+
+            Divider()
+
+            if appState.devices.isEmpty {
+                VStack {
+                    Spacer()
+                    Text("No devices found")
+                        .foregroundStyle(.secondary)
+                    Text("Add manually or scan network")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity)
+            } else {
+                List(appState.devices) { device in
+                    DeviceRow(device: device)
+                }
+            }
+
+            Divider()
+
+            if let showFile = appState.showFile {
+                VStack(alignment: .leading, spacing: 4) {
+                    Label(showFile.fileName, systemImage: "doc.fill")
+                        .font(.caption)
+                        .lineLimit(1)
+                    Text("\(showFile.entries.count) frequencies")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(12)
+            }
+
+            if !appState.statusMessage.isEmpty {
+                Text(appState.statusMessage)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 8)
+            }
+        }
+        .frame(width: 240)
+        .background(Color(nsColor: .controlBackgroundColor))
+    }
+
+    private var detailView: some View {
+        Group {
             if appState.showFile != nil {
                 FrequencyAssignmentView()
             } else {
@@ -18,87 +95,44 @@ struct ContentView: View {
                         .foregroundStyle(.secondary)
                     Text("Sennheiser Freq Manager")
                         .font(.title2)
-                    Text("Import a Wireless Workbench file (.shw) or add devices manually")
+                        .fontWeight(.medium)
+                    Text("Open a Wireless Workbench show file (.shw)\nto load coordinated frequencies")
+                        .multilineTextAlignment(.center)
                         .foregroundStyle(.secondary)
 
-                    Button("Open WWB Show File…") {
-                        showFileImporter = true
+                    Button("Open WWB File…") {
+                        openFilePanel()
                     }
                     .buttonStyle(.borderedProminent)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
-        }
-        .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
-                Button {
-                    showFileImporter = true
-                } label: {
-                    Label("Open WWB File", systemImage: "doc.badge.plus")
-                }
+                    .controlSize(.large)
 
-                Button {
-                    appState.startDiscovery()
-                } label: {
-                    Label("Scan Network", systemImage: "network")
-                }
-                .disabled(appState.isScanning)
+                    HStack(spacing: 12) {
+                        Button("Scan Network") {
+                            appState.startDiscovery()
+                        }
+                        .disabled(appState.isScanning)
 
-                Button {
-                    showAddDevice = true
-                } label: {
-                    Label("Add Device", systemImage: "plus")
+                        Button("Add Device…") {
+                            showAddDevice = true
+                        }
+                    }
                 }
             }
         }
-        .fileImporter(
-            isPresented: $showFileImporter,
-            allowedContentTypes: [.xml, .init(filenameExtension: "shw")!],
-            allowsMultipleSelection: false
-        ) { result in
-            if case .success(let urls) = result, let url = urls.first {
-                if url.startAccessingSecurityScopedResource() {
-                    appState.loadShowFile(url: url)
-                    url.stopAccessingSecurityScopedResource()
-                }
-            }
-        }
-        .sheet(isPresented: $showAddDevice) {
-            AddDeviceView()
-        }
-        .overlay(alignment: .bottom) {
-            if !appState.statusMessage.isEmpty {
-                StatusBar(message: appState.statusMessage)
-            }
-        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(nsColor: .windowBackgroundColor))
     }
 
-    private var sidebar: some View {
-        List {
-            Section("Transmitters") {
-                if appState.devices.isEmpty {
-                    Text("No devices")
-                        .foregroundStyle(.secondary)
-                        .italic()
-                } else {
-                    ForEach(appState.devices) { device in
-                        DeviceRow(device: device)
-                    }
-                }
-            }
+    private func openFilePanel() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.xml]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.message = "Select a Wireless Workbench show file (.shw)"
 
-            if let showFile = appState.showFile {
-                Section("WWB: \(showFile.fileName)") {
-                    Label("\(showFile.entries.count) frequencies", systemImage: "waveform")
-                    Label("\(showFile.activeEntries.count) active", systemImage: "checkmark.circle")
-                    if !showFile.backupEntries.isEmpty {
-                        Label("\(showFile.backupEntries.count) backup", systemImage: "arrow.triangle.2.circlepath")
-                    }
-                }
-            }
+        if panel.runModal() == .OK, let url = panel.url {
+            appState.loadShowFile(url: url)
         }
-        .listStyle(.sidebar)
-        .frame(minWidth: 220)
     }
 }
 
@@ -121,22 +155,10 @@ struct DeviceRow: View {
                 Spacer()
                 Text(device.frequencyDisplayString)
                     .font(.caption)
+                    .monospacedDigit()
                     .foregroundStyle(.secondary)
             }
         }
         .padding(.vertical, 2)
-    }
-}
-
-struct StatusBar: View {
-    let message: String
-
-    var body: some View {
-        Text(message)
-            .font(.caption)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
-            .padding(8)
     }
 }
