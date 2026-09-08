@@ -10,15 +10,17 @@ struct FrequencyAssignmentView: View {
         guard let showFile = appState.showFile else { return [] }
         var entries = showFile.entries
         if filterIEMOnly {
-            entries = entries.filter {
-                $0.deviceType.lowercased().contains("in ear") ||
-                $0.deviceType.lowercased().contains("iem") ||
-                $0.model.lowercased().contains("iem") ||
-                $0.series.lowercased().contains("iem")
+            let iemFiltered = entries.filter {
+                let dt = $0.deviceType.lowercased()
+                let series = $0.series.lowercased()
+                let model = $0.model.lowercased()
+                let mfr = $0.manufacturer.lowercased()
+                return dt.contains("in ear") || dt.contains("iem") ||
+                    model.contains("iem") || series.contains("iem") ||
+                    series.contains("psm") ||
+                    (mfr.contains("sennheiser") && series.contains("ew"))
             }
-            if entries.isEmpty {
-                entries = showFile.entries
-            }
+            entries = iemFiltered.isEmpty ? entries : iemFiltered
         }
         if showActiveOnly {
             entries = entries.filter { $0.isActive }

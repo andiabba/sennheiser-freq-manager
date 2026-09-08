@@ -87,6 +87,9 @@ private class WWBXMLParser: NSObject, XMLParserDelegate {
     private var inFreqEntry = false
     private var inCompatKey = false
     private var inDevCategory = false
+    private var inInventoryDevice = false
+    private var currentInventoryDevice: [String: String] = [:]
+    private var inventoryDevices: [String: [String: String]] = [:]
 
     var entries: [WWBFrequencyEntry] = []
     var showDate = ""
@@ -113,6 +116,11 @@ private class WWBXMLParser: NSObject, XMLParserDelegate {
         if elementName == "show" {
             showDate = attributes["date"] ?? ""
             showVersion = attributes["appl_version"] ?? ""
+        }
+
+        if elementName == "device" && !inFreqEntry {
+            inInventoryDevice = true
+            currentInventoryDevice = [:]
         }
 
         if elementName == "freq_entry" {
@@ -151,8 +159,10 @@ private class WWBXMLParser: NSObject, XMLParserDelegate {
             }
 
             if inDevCategory {
-                if elementName == "dev_type" {
-                    currentEntry["dev_type"] = text
+                if elementName == "dev_type" && text != "Unknown" {
+                    if currentEntry["dev_type"] == nil || currentEntry["dev_type"] == "Unknown" {
+                        currentEntry["dev_type"] = text
+                    }
                 }
             }
 
@@ -163,7 +173,26 @@ private class WWBXMLParser: NSObject, XMLParserDelegate {
             case "model": currentEntry["model"] = text
             case "manufacturer": currentEntry["manufacturer"] = text
             case "source_name": currentEntry["source_name"] = text
+            case "source_id": currentEntry["source_id"] = text
             default: break
+            }
+        }
+
+        if inInventoryDevice && !inFreqEntry {
+            switch elementName {
+            case "id": currentInventoryDevice["id"] = text
+            case "device_name": currentInventoryDevice["device_name"] = text
+            case "channel_name": currentInventoryDevice["channel_name"] = text
+            case "series": currentInventoryDevice["series"] = text
+            case "model": currentInventoryDevice["model"] = text
+            default: break
+            }
+        }
+
+        if elementName == "device" && inInventoryDevice && !inFreqEntry {
+            inInventoryDevice = false
+            if let id = currentInventoryDevice["id"] {
+                inventoryDevices[id] = currentInventoryDevice
             }
         }
 
@@ -177,16 +206,33 @@ private class WWBXMLParser: NSObject, XMLParserDelegate {
             let freqKHz = Int(currentEntry["value"] ?? "0") ?? 0
 
             if freqKHz > 0 {
+                let entryID = currentEntry["id"] ?? UUID().uuidString
+                let sourceID = currentEntry["source_id"] ?? entryID
+                let inventoryInfo = inventoryDevices[sourceID] ?? inventoryDevices[entryID]
+
+                var name = currentEntry["source_name"] ?? ""
+                if name.isEmpty { name = currentEntry["tag"] ?? "" }
+                if name.isEmpty { name = inventoryInfo?["channel_name"] ?? "" }
+                if name.isEmpty { name = inventoryInfo?["device_name"] ?? "" }
+
+                var devType = currentEntry["dev_type"] ?? ""
+                if devType.isEmpty || devType == "Unknown" {
+                    let series = (currentEntry["series"] ?? "").lowercased()
+                    if series.contains("iem") || series.contains("psm") {
+                        devType = "In Ear Monitor"
+                    }
+                }
+
                 let entry = WWBFrequencyEntry(
-                    id: currentEntry["id"] ?? UUID().uuidString,
+                    id: entryID,
                     frequencyKHz: freqKHz,
-                    name: currentEntry["source_name"] ?? currentEntry["tag"] ?? "",
+                    name: name,
                     zone: currentEntry["zone"] ?? "Default",
                     band: currentEntry["band"] ?? "",
                     series: currentEntry["series"] ?? "",
                     manufacturer: currentEntry["manufacturer"] ?? "",
                     model: currentEntry["model"] ?? "",
-                    deviceType: currentEntry["dev_type"] ?? "",
+                    deviceType: devType,
                     groupChannel: currentEntry["gr_ch"] ?? "",
                     isActive: contextRole == 7,
                     isBackup: contextRole == 9,
