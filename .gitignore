@@ -1,6 +1,7 @@
 .build/
 .swiftpm/
-*.xcodeproj/xcuserdata/
 DerivedData/
 .DS_Store
 SennheiserFreqManager.app/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcshareddata/
