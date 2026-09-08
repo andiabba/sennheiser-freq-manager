@@ -125,7 +125,7 @@ struct ContentView: View {
 
     private func openFilePanel() {
         let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.xml]
+        panel.allowedFileTypes = ["shw", "xml"]
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
         panel.message = "Select a Wireless Workbench show file (.shw)"
