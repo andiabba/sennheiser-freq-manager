@@ -5,13 +5,29 @@ struct SennheiserDevice: Identifiable, Hashable {
     var name: String
     var host: String
     var port: Int = 53212
-    var frequencyKHz: Int?
-    var muted: Bool = false
-    var mode: AudioMode = .stereo
-    var sensitivity: Int = 0
     var isOnline: Bool = true
 
-    enum AudioMode: String, CaseIterable {
+    // TX Settings
+    var frequencyKHz: Int?
+    var bank: Int?
+    var channel: Int?
+    var sensitivity: Int = 0
+    var mode: AudioMode = .stereo
+    var autoLock: Bool = false
+    var rfMute: Bool = false
+    var rfPower: Int = 10
+    var warningAfPeak: Bool = true
+    var warningRfMute: Bool = true
+
+    // RX Sync Settings
+    var rxAutoLock: Bool = false
+    var rxBalance: Int = 0
+    var rxMode: AudioMode = .stereo
+    var rxLimiter: Bool = true
+    var rxHighBoost: Bool = false
+    var rxSquelch: Int = 5
+
+    enum AudioMode: String, CaseIterable, Hashable {
         case mono = "Mono"
         case stereo = "Stereo"
 
@@ -20,6 +36,10 @@ struct SennheiserDevice: Identifiable, Hashable {
             case .mono: return 0
             case .stereo: return 1
             }
+        }
+
+        init(protocolValue: Int) {
+            self = protocolValue == 0 ? .mono : .stereo
         }
     }
 
@@ -32,12 +52,6 @@ struct SennheiserDevice: Identifiable, Hashable {
         guard let mhz = frequencyMHz else { return "—" }
         return String(format: "%.3f MHz", mhz)
     }
-}
 
-struct DeviceStatus {
-    var rfMute: Bool = false
-    var afPeak1: Int = 0
-    var afPeak2: Int = 0
-    var afHold1: Int = 0
-    var afHold2: Int = 0
+    static let rfPowerLevels = [10, 30, 50]
 }

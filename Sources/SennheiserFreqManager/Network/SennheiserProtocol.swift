@@ -55,28 +55,15 @@ class SennheiserProtocol {
         })
     }
 
-    func setFrequency(device: SennheiserDevice, frequencyKHz: Int, completion: @escaping (Result<Void, Error>) -> Void) {
-        sendCommand(device: device, command: "Frequency \(frequencyKHz)") { result in
-            switch result {
-            case .success(let response):
-                if response.hasPrefix("Frequency") {
-                    completion(.success(()))
-                } else {
-                    completion(.failure(ProtocolError.unexpectedResponse(response)))
-                }
-            case .failure(let error):
-                completion(.failure(error))
-            }
-        }
-    }
+    // MARK: - Generic query/set helpers
 
-    func queryFrequency(device: SennheiserDevice, completion: @escaping (Result<Int, Error>) -> Void) {
-        sendCommand(device: device, command: "Frequency") { result in
+    private func queryInt(device: SennheiserDevice, command: String, completion: @escaping (Result<Int, Error>) -> Void) {
+        sendCommand(device: device, command: command) { result in
             switch result {
             case .success(let response):
                 let parts = response.split(separator: " ")
-                if parts.count >= 2, let freq = Int(parts[1]) {
-                    completion(.success(freq))
+                if parts.count >= 2, let val = Int(parts[1]) {
+                    completion(.success(val))
                 } else {
                     completion(.failure(ProtocolError.parseError(response)))
                 }
@@ -86,13 +73,42 @@ class SennheiserProtocol {
         }
     }
 
+    private func queryBool(device: SennheiserDevice, command: String, completion: @escaping (Result<Bool, Error>) -> Void) {
+        sendCommand(device: device, command: command) { result in
+            switch result {
+            case .success(let response):
+                let parts = response.split(separator: " ")
+                if parts.count >= 2 {
+                    completion(.success(parts[1] == "1"))
+                } else {
+                    completion(.failure(ProtocolError.parseError(response)))
+                }
+            case .failure(let error):
+                completion(.failure(error))
+            }
+        }
+    }
+
+    private func setInt(device: SennheiserDevice, command: String, value: Int, completion: @escaping (Result<Void, Error>) -> Void) {
+        sendCommand(device: device, command: "\(command) \(value)") { result in
+            completion(result.map { _ in () })
+        }
+    }
+
+    private func setBool(device: SennheiserDevice, command: String, value: Bool, completion: @escaping (Result<Void, Error>) -> Void) {
+        sendCommand(device: device, command: "\(command) \(value ? 1 : 0)") { result in
+            completion(result.map { _ in () })
+        }
+    }
+
+    // MARK: - Name
+
     func queryName(device: SennheiserDevice, completion: @escaping (Result<String, Error>) -> Void) {
         sendCommand(device: device, command: "Name") { result in
             switch result {
             case .success(let response):
                 if response.hasPrefix("Name ") {
-                    let name = String(response.dropFirst(5))
-                    completion(.success(name))
+                    completion(.success(String(response.dropFirst(5))))
                 } else {
                     completion(.failure(ProtocolError.parseError(response)))
                 }
@@ -108,72 +124,156 @@ class SennheiserProtocol {
         }
     }
 
-    func setMute(device: SennheiserDevice, muted: Bool, completion: @escaping (Result<Void, Error>) -> Void) {
-        sendCommand(device: device, command: "Mute \(muted ? 1 : 0)") { result in
-            completion(result.map { _ in () })
+    // MARK: - Frequency / Bank / Channel
+
+    func queryFrequency(device: SennheiserDevice, completion: @escaping (Result<Int, Error>) -> Void) {
+        queryInt(device: device, command: "Frequency", completion: completion)
+    }
+
+    func setFrequency(device: SennheiserDevice, frequencyKHz: Int, completion: @escaping (Result<Void, Error>) -> Void) {
+        sendCommand(device: device, command: "Frequency \(frequencyKHz)") { result in
+            switch result {
+            case .success(let response):
+                if response.hasPrefix("Frequency") {
+                    completion(.success(()))
+                } else {
+                    completion(.failure(ProtocolError.unexpectedResponse(response)))
+                }
+            case .failure(let error):
+                completion(.failure(error))
+            }
         }
     }
 
+    func queryBank(device: SennheiserDevice, completion: @escaping (Result<Int, Error>) -> Void) {
+        queryInt(device: device, command: "Bank", completion: completion)
+    }
+
+    func setBank(device: SennheiserDevice, bank: Int, completion: @escaping (Result<Void, Error>) -> Void) {
+        setInt(device: device, command: "Bank", value: bank, completion: completion)
+    }
+
+    func queryChannel(device: SennheiserDevice, completion: @escaping (Result<Int, Error>) -> Void) {
+        queryInt(device: device, command: "Channel", completion: completion)
+    }
+
+    func setChannel(device: SennheiserDevice, channel: Int, completion: @escaping (Result<Void, Error>) -> Void) {
+        setInt(device: device, command: "Channel", value: channel, completion: completion)
+    }
+
+    // MARK: - TX Settings
+
+    func querySensitivity(device: SennheiserDevice, completion: @escaping (Result<Int, Error>) -> Void) {
+        queryInt(device: device, command: "Sensitivity", completion: completion)
+    }
+
     func setSensitivity(device: SennheiserDevice, dB: Int, completion: @escaping (Result<Void, Error>) -> Void) {
-        let clamped = max(-42, min(0, dB))
-        sendCommand(device: device, command: "Sensitivity \(clamped)") { result in
-            completion(result.map { _ in () })
+        setInt(device: device, command: "Sensitivity", value: max(-42, min(0, dB)), completion: completion)
+    }
+
+    func queryMode(device: SennheiserDevice, completion: @escaping (Result<SennheiserDevice.AudioMode, Error>) -> Void) {
+        queryInt(device: device, command: "Mode") { result in
+            completion(result.map { SennheiserDevice.AudioMode(protocolValue: $0) })
         }
     }
 
     func setMode(device: SennheiserDevice, mode: SennheiserDevice.AudioMode, completion: @escaping (Result<Void, Error>) -> Void) {
-        sendCommand(device: device, command: "Mode \(mode.protocolValue)") { result in
-            completion(result.map { _ in () })
-        }
+        setInt(device: device, command: "Mode", value: mode.protocolValue, completion: completion)
     }
 
-    func querySensitivity(device: SennheiserDevice, completion: @escaping (Result<Int, Error>) -> Void) {
-        sendCommand(device: device, command: "Sensitivity") { result in
-            switch result {
-            case .success(let response):
-                let parts = response.split(separator: " ")
-                if parts.count >= 2, let val = Int(parts[1]) {
-                    completion(.success(val))
-                } else {
-                    completion(.failure(ProtocolError.parseError(response)))
-                }
-            case .failure(let error):
-                completion(.failure(error))
-            }
-        }
+    func queryAutoLock(device: SennheiserDevice, completion: @escaping (Result<Bool, Error>) -> Void) {
+        queryBool(device: device, command: "Lock", completion: completion)
+    }
+
+    func setAutoLock(device: SennheiserDevice, locked: Bool, completion: @escaping (Result<Void, Error>) -> Void) {
+        setBool(device: device, command: "Lock", value: locked, completion: completion)
     }
 
     func queryMute(device: SennheiserDevice, completion: @escaping (Result<Bool, Error>) -> Void) {
-        sendCommand(device: device, command: "Mute") { result in
-            switch result {
-            case .success(let response):
-                let parts = response.split(separator: " ")
-                if parts.count >= 2 {
-                    completion(.success(parts[1] == "1"))
-                } else {
-                    completion(.failure(ProtocolError.parseError(response)))
-                }
-            case .failure(let error):
-                completion(.failure(error))
-            }
+        queryBool(device: device, command: "Mute", completion: completion)
+    }
+
+    func setMute(device: SennheiserDevice, muted: Bool, completion: @escaping (Result<Void, Error>) -> Void) {
+        setBool(device: device, command: "Mute", value: muted, completion: completion)
+    }
+
+    func queryRfPower(device: SennheiserDevice, completion: @escaping (Result<Int, Error>) -> Void) {
+        queryInt(device: device, command: "RfPower", completion: completion)
+    }
+
+    func setRfPower(device: SennheiserDevice, mW: Int, completion: @escaping (Result<Void, Error>) -> Void) {
+        setInt(device: device, command: "RfPower", value: mW, completion: completion)
+    }
+
+    func queryWarningAfPeak(device: SennheiserDevice, completion: @escaping (Result<Bool, Error>) -> Void) {
+        queryBool(device: device, command: "WarnPeak", completion: completion)
+    }
+
+    func setWarningAfPeak(device: SennheiserDevice, enabled: Bool, completion: @escaping (Result<Void, Error>) -> Void) {
+        setBool(device: device, command: "WarnPeak", value: enabled, completion: completion)
+    }
+
+    func queryWarningRfMute(device: SennheiserDevice, completion: @escaping (Result<Bool, Error>) -> Void) {
+        queryBool(device: device, command: "WarnMute", completion: completion)
+    }
+
+    func setWarningRfMute(device: SennheiserDevice, enabled: Bool, completion: @escaping (Result<Void, Error>) -> Void) {
+        setBool(device: device, command: "WarnMute", value: enabled, completion: completion)
+    }
+
+    // MARK: - RX Sync Settings
+
+    func queryRxAutoLock(device: SennheiserDevice, completion: @escaping (Result<Bool, Error>) -> Void) {
+        queryBool(device: device, command: "RxLock", completion: completion)
+    }
+
+    func setRxAutoLock(device: SennheiserDevice, locked: Bool, completion: @escaping (Result<Void, Error>) -> Void) {
+        setBool(device: device, command: "RxLock", value: locked, completion: completion)
+    }
+
+    func queryRxBalance(device: SennheiserDevice, completion: @escaping (Result<Int, Error>) -> Void) {
+        queryInt(device: device, command: "Balance", completion: completion)
+    }
+
+    func setRxBalance(device: SennheiserDevice, value: Int, completion: @escaping (Result<Void, Error>) -> Void) {
+        setInt(device: device, command: "Balance", value: max(-12, min(12, value)), completion: completion)
+    }
+
+    func queryRxMode(device: SennheiserDevice, completion: @escaping (Result<SennheiserDevice.AudioMode, Error>) -> Void) {
+        queryInt(device: device, command: "RxMode") { result in
+            completion(result.map { SennheiserDevice.AudioMode(protocolValue: $0) })
         }
     }
 
-    func queryMode(device: SennheiserDevice, completion: @escaping (Result<SennheiserDevice.AudioMode, Error>) -> Void) {
-        sendCommand(device: device, command: "Mode") { result in
-            switch result {
-            case .success(let response):
-                let parts = response.split(separator: " ")
-                if parts.count >= 2 {
-                    completion(.success(parts[1] == "0" ? .mono : .stereo))
-                } else {
-                    completion(.failure(ProtocolError.parseError(response)))
-                }
-            case .failure(let error):
-                completion(.failure(error))
-            }
-        }
+    func setRxMode(device: SennheiserDevice, mode: SennheiserDevice.AudioMode, completion: @escaping (Result<Void, Error>) -> Void) {
+        setInt(device: device, command: "RxMode", value: mode.protocolValue, completion: completion)
     }
+
+    func queryRxLimiter(device: SennheiserDevice, completion: @escaping (Result<Bool, Error>) -> Void) {
+        queryBool(device: device, command: "Limiter", completion: completion)
+    }
+
+    func setRxLimiter(device: SennheiserDevice, enabled: Bool, completion: @escaping (Result<Void, Error>) -> Void) {
+        setBool(device: device, command: "Limiter", value: enabled, completion: completion)
+    }
+
+    func queryRxHighBoost(device: SennheiserDevice, completion: @escaping (Result<Bool, Error>) -> Void) {
+        queryBool(device: device, command: "HiBoost", completion: completion)
+    }
+
+    func setRxHighBoost(device: SennheiserDevice, enabled: Bool, completion: @escaping (Result<Void, Error>) -> Void) {
+        setBool(device: device, command: "HiBoost", value: enabled, completion: completion)
+    }
+
+    func queryRxSquelch(device: SennheiserDevice, completion: @escaping (Result<Int, Error>) -> Void) {
+        queryInt(device: device, command: "Squelch", completion: completion)
+    }
+
+    func setRxSquelch(device: SennheiserDevice, value: Int, completion: @escaping (Result<Void, Error>) -> Void) {
+        setInt(device: device, command: "Squelch", value: max(0, min(36, value)), completion: completion)
+    }
+
+    // MARK: - Push / Connection
 
     func subscribePush(device: SennheiserDevice, timeout: Int = 60, rateMs: Int = 500) {
         sendCommand(device: device, command: "Push \(timeout) \(rateMs) 3") { _ in }
