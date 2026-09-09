@@ -15,10 +15,27 @@ class AppState: ObservableObject {
     init() {
         deviceDiscovery.$discoveredDevices
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] devices in
-                self?.devices = devices
+            .sink { [weak self] newDevices in
+                guard let self = self else { return }
+                let existingIDs = Set(self.devices.map { $0.id })
+                for device in newDevices where !existingIDs.contains(device.id) {
+                    self.queryDeviceState(device)
+                }
+                self.mergeDiscoveredDevices(newDevices)
             }
             .store(in: &cancellables)
+    }
+
+    private func mergeDiscoveredDevices(_ discovered: [SennheiserDevice]) {
+        var updated = devices
+        let discoveredIDs = Set(discovered.map { $0.id })
+        updated.removeAll { !discoveredIDs.contains($0.id) && $0.isOnline }
+        for disc in discovered {
+            if updated.firstIndex(where: { $0.id == disc.id }) == nil {
+                updated.append(disc)
+            }
+        }
+        devices = updated
     }
 
     func startDiscovery() {
