@@ -29,12 +29,84 @@ struct WWBParser {
             throw ParseError.noCoordinationData
         }
 
+        let scanData = loadScanData(scanPath: parser.scanFilePath, showFileURL: fileURL)
+        var entries = parser.entries
+        if !scanData.isEmpty {
+            for i in entries.indices {
+                entries[i].scanLevelDBm = lookupLevel(frequencyMHz: entries[i].frequencyMHz, scanData: scanData)
+            }
+        }
+
         return WWBShowFile(
             fileName: fileURL.lastPathComponent,
             date: parser.showDate,
             version: parser.showVersion,
-            entries: parser.entries
+            entries: entries,
+            scanDataPath: parser.scanFilePath
         )
+    }
+
+    private static func loadScanData(scanPath: String?, showFileURL: URL) -> [(freqMHz: Double, levelDBm: Double)] {
+        guard let path = scanPath, !path.isEmpty else { return [] }
+
+        let candidates = [
+            path,
+            (showFileURL.deletingLastPathComponent().path as NSString).appendingPathComponent((path as NSString).lastPathComponent),
+            NSString(string: "~/rfexplorer-detailed-scan-master____/\((path as NSString).lastPathComponent)").expandingTildeInPath,
+            NSString(string: "~/rfexplorer-detailed-scan-master/\((path as NSString).lastPathComponent)").expandingTildeInPath,
+        ]
+
+        for candidate in candidates {
+            let url = URL(fileURLWithPath: candidate)
+            if let content = try? String(contentsOf: url, encoding: .utf8) {
+                return parseScanCSV(content)
+            }
+        }
+        return []
+    }
+
+    private static func parseScanCSV(_ content: String) -> [(freqMHz: Double, levelDBm: Double)] {
+        var data: [(freqMHz: Double, levelDBm: Double)] = []
+        for line in content.components(separatedBy: .newlines) {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.isEmpty { continue }
+            let parts = trimmed.components(separatedBy: ",")
+            guard parts.count >= 2,
+                  let freq = Double(parts[0]),
+                  let level = Double(parts[1]) else { continue }
+            data.append((freqMHz: freq, levelDBm: level))
+        }
+        data.sort { $0.freqMHz < $1.freqMHz }
+        return data
+    }
+
+    private static func lookupLevel(frequencyMHz: Double, scanData: [(freqMHz: Double, levelDBm: Double)]) -> Double? {
+        guard !scanData.isEmpty else { return nil }
+
+        var lo = 0, hi = scanData.count - 1
+        while lo < hi {
+            let mid = (lo + hi) / 2
+            if scanData[mid].freqMHz < frequencyMHz { lo = mid + 1 } else { hi = mid }
+        }
+
+        if lo == 0 {
+            return abs(scanData[0].freqMHz - frequencyMHz) < 0.1 ? scanData[0].levelDBm : nil
+        }
+        if lo >= scanData.count {
+            return abs(scanData.last!.freqMHz - frequencyMHz) < 0.1 ? scanData.last!.levelDBm : nil
+        }
+
+        let before = scanData[lo - 1]
+        let after = scanData[lo]
+
+        if abs(after.freqMHz - frequencyMHz) < 0.001 { return after.levelDBm }
+        if abs(before.freqMHz - frequencyMHz) < 0.001 { return before.levelDBm }
+
+        if (after.freqMHz - before.freqMHz) < 0.001 { return before.levelDBm }
+
+        let t = (frequencyMHz - before.freqMHz) / (after.freqMHz - before.freqMHz)
+        if t < 0 || t > 1 { return nil }
+        return before.levelDBm + t * (after.levelDBm - before.levelDBm)
     }
 
     static func parseCSV(fileURL: URL) throws -> [WWBFrequencyEntry] {
@@ -70,7 +142,7 @@ struct WWBParser {
                     isActive: true,
                     isBackup: false,
                     color: "#585858",
-                    txPowerMW: nil
+                    scanLevelDBm: nil
                 ))
             }
         }
@@ -88,6 +160,7 @@ private class WWBXMLParser: NSObject, XMLParserDelegate {
     private var inFreqEntry = false
     private var inCompatKey = false
     private var inDevCategory = false
+    private var inScanData = false
     private var inInventoryDevice = false
     private var currentInventoryDevice: [String: String] = [:]
     private var inventoryDevices: [String: [String: String]] = [:]
@@ -95,6 +168,7 @@ private class WWBXMLParser: NSObject, XMLParserDelegate {
     var entries: [WWBFrequencyEntry] = []
     var showDate = ""
     var showVersion = ""
+    var scanFilePath: String?
     var errorMessage: String?
 
     init(data: Data) {
@@ -117,6 +191,10 @@ private class WWBXMLParser: NSObject, XMLParserDelegate {
         if elementName == "show" {
             showDate = attributes["date"] ?? ""
             showVersion = attributes["appl_version"] ?? ""
+        }
+
+        if elementName == "scan_data" {
+            inScanData = true
         }
 
         if elementName == "device" && !inFreqEntry {
@@ -148,6 +226,11 @@ private class WWBXMLParser: NSObject, XMLParserDelegate {
     func parser(_ parser: XMLParser, didEndElement elementName: String,
                 namespaceURI: String?, qualifiedName: String?) {
         let text = currentText.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if inScanData && elementName == "file_path" {
+            scanFilePath = text
+        }
+        if elementName == "scan_data" { inScanData = false }
 
         if inFreqEntry {
             if inCompatKey {
@@ -186,7 +269,6 @@ private class WWBXMLParser: NSObject, XMLParserDelegate {
             case "channel_name": currentInventoryDevice["channel_name"] = text
             case "series": currentInventoryDevice["series"] = text
             case "model": currentInventoryDevice["model"] = text
-            case "tx_power": currentInventoryDevice["tx_power"] = text
             default: break
             }
         }
@@ -225,11 +307,6 @@ private class WWBXMLParser: NSObject, XMLParserDelegate {
                     }
                 }
 
-                let txPower: Int? = {
-                    if let s = inventoryInfo?["tx_power"], let v = Int(s) { return v }
-                    return nil
-                }()
-
                 let entry = WWBFrequencyEntry(
                     id: entryID,
                     frequencyKHz: freqKHz,
@@ -244,7 +321,7 @@ private class WWBXMLParser: NSObject, XMLParserDelegate {
                     isActive: contextRole == 7,
                     isBackup: contextRole == 9,
                     color: currentEntry["color"] ?? "#585858",
-                    txPowerMW: txPower
+                    scanLevelDBm: nil
                 )
                 entries.append(entry)
             }

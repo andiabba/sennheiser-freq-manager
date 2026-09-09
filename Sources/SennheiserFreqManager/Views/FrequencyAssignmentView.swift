@@ -96,13 +96,13 @@ struct FrequencyAssignmentView: View {
             }
             .width(min: 60, ideal: 100)
 
-            TableColumn("Power") { entry in
-                Text(entry.txPowerDisplayString)
+            TableColumn("Level") { entry in
+                Text(entry.scanLevelDisplayString)
                     .monospacedDigit()
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            .width(min: 50, ideal: 65)
+            .width(min: 60, ideal: 80)
 
             TableColumn("Status") { entry in
                 HStack(spacing: 4) {

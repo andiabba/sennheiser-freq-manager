@@ -14,7 +14,7 @@ struct WWBFrequencyEntry: Identifiable, Hashable {
     var isActive: Bool
     var isBackup: Bool
     var color: String
-    var txPowerMW: Int?
+    var scanLevelDBm: Double?
 
     var frequencyMHz: Double {
         Double(frequencyKHz) / 1000.0
@@ -24,14 +24,9 @@ struct WWBFrequencyEntry: Identifiable, Hashable {
         String(format: "%.3f MHz", frequencyMHz)
     }
 
-    var txPowerDBm: Double? {
-        guard let mw = txPowerMW, mw > 0 else { return nil }
-        return 10.0 * log10(Double(mw))
-    }
-
-    var txPowerDisplayString: String {
-        guard let dbm = txPowerDBm else { return "—" }
-        return String(format: "%.0f dBm", dbm)
+    var scanLevelDisplayString: String {
+        guard let dbm = scanLevelDBm else { return "—" }
+        return String(format: "%.1f dBm", dbm)
     }
 }
 
@@ -40,6 +35,7 @@ struct WWBShowFile {
     var date: String
     var version: String
     var entries: [WWBFrequencyEntry]
+    var scanDataPath: String?
 
     var activeEntries: [WWBFrequencyEntry] {
         entries.filter { $0.isActive }
