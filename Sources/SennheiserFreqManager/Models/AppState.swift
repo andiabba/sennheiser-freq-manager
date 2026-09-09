@@ -104,5 +104,94 @@ class AppState: ObservableObject {
                 }
             }
         }
+        sennheiserProtocol.querySensitivity(device: device) { [weak self] result in
+            DispatchQueue.main.async {
+                if case .success(let val) = result,
+                   let idx = self?.devices.firstIndex(where: { $0.id == device.id }) {
+                    self?.devices[idx].sensitivity = val
+                }
+            }
+        }
+        sennheiserProtocol.queryMute(device: device) { [weak self] result in
+            DispatchQueue.main.async {
+                if case .success(let muted) = result,
+                   let idx = self?.devices.firstIndex(where: { $0.id == device.id }) {
+                    self?.devices[idx].muted = muted
+                }
+            }
+        }
+        sennheiserProtocol.queryMode(device: device) { [weak self] result in
+            DispatchQueue.main.async {
+                if case .success(let mode) = result,
+                   let idx = self?.devices.firstIndex(where: { $0.id == device.id }) {
+                    self?.devices[idx].mode = mode
+                }
+            }
+        }
+    }
+
+    func setDeviceName(_ device: SennheiserDevice, name: String) {
+        sennheiserProtocol.setName(device: device, name: name) { [weak self] result in
+            DispatchQueue.main.async {
+                if case .success = result,
+                   let idx = self?.devices.firstIndex(where: { $0.id == device.id }) {
+                    self?.devices[idx].name = name
+                    self?.statusMessage = "Name set to \(name)"
+                }
+            }
+        }
+    }
+
+    func setDeviceFrequency(_ device: SennheiserDevice, frequencyKHz: Int) {
+        sennheiserProtocol.setFrequency(device: device, frequencyKHz: frequencyKHz) { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    if let idx = self?.devices.firstIndex(where: { $0.id == device.id }) {
+                        self?.devices[idx].frequencyKHz = frequencyKHz
+                    }
+                    let mhz = Double(frequencyKHz) / 1000.0
+                    self?.statusMessage = "Frequency set to \(String(format: "%.3f MHz", mhz))"
+                case .failure(let error):
+                    self?.statusMessage = "Error: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+
+    func setDeviceMute(_ device: SennheiserDevice, muted: Bool) {
+        sennheiserProtocol.setMute(device: device, muted: muted) { [weak self] result in
+            DispatchQueue.main.async {
+                if case .success = result,
+                   let idx = self?.devices.firstIndex(where: { $0.id == device.id }) {
+                    self?.devices[idx].muted = muted
+                    self?.statusMessage = muted ? "Muted" : "Unmuted"
+                }
+            }
+        }
+    }
+
+    func setDeviceSensitivity(_ device: SennheiserDevice, dB: Int) {
+        sennheiserProtocol.setSensitivity(device: device, dB: dB) { [weak self] result in
+            DispatchQueue.main.async {
+                if case .success = result,
+                   let idx = self?.devices.firstIndex(where: { $0.id == device.id }) {
+                    self?.devices[idx].sensitivity = dB
+                    self?.statusMessage = "Sensitivity set to \(dB) dB"
+                }
+            }
+        }
+    }
+
+    func setDeviceMode(_ device: SennheiserDevice, mode: SennheiserDevice.AudioMode) {
+        sennheiserProtocol.setMode(device: device, mode: mode) { [weak self] result in
+            DispatchQueue.main.async {
+                if case .success = result,
+                   let idx = self?.devices.firstIndex(where: { $0.id == device.id }) {
+                    self?.devices[idx].mode = mode
+                    self?.statusMessage = "Mode set to \(mode.rawValue)"
+                }
+            }
+        }
     }
 }

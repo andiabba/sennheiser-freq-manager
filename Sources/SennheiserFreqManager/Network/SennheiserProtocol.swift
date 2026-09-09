@@ -127,6 +127,54 @@ class SennheiserProtocol {
         }
     }
 
+    func querySensitivity(device: SennheiserDevice, completion: @escaping (Result<Int, Error>) -> Void) {
+        sendCommand(device: device, command: "Sensitivity") { result in
+            switch result {
+            case .success(let response):
+                let parts = response.split(separator: " ")
+                if parts.count >= 2, let val = Int(parts[1]) {
+                    completion(.success(val))
+                } else {
+                    completion(.failure(ProtocolError.parseError(response)))
+                }
+            case .failure(let error):
+                completion(.failure(error))
+            }
+        }
+    }
+
+    func queryMute(device: SennheiserDevice, completion: @escaping (Result<Bool, Error>) -> Void) {
+        sendCommand(device: device, command: "Mute") { result in
+            switch result {
+            case .success(let response):
+                let parts = response.split(separator: " ")
+                if parts.count >= 2 {
+                    completion(.success(parts[1] == "1"))
+                } else {
+                    completion(.failure(ProtocolError.parseError(response)))
+                }
+            case .failure(let error):
+                completion(.failure(error))
+            }
+        }
+    }
+
+    func queryMode(device: SennheiserDevice, completion: @escaping (Result<SennheiserDevice.AudioMode, Error>) -> Void) {
+        sendCommand(device: device, command: "Mode") { result in
+            switch result {
+            case .success(let response):
+                let parts = response.split(separator: " ")
+                if parts.count >= 2 {
+                    completion(.success(parts[1] == "0" ? .mono : .stereo))
+                } else {
+                    completion(.failure(ProtocolError.parseError(response)))
+                }
+            case .failure(let error):
+                completion(.failure(error))
+            }
+        }
+    }
+
     func subscribePush(device: SennheiserDevice, timeout: Int = 60, rateMs: Int = 500) {
         sendCommand(device: device, command: "Push \(timeout) \(rateMs) 3") { _ in }
     }

@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 struct ContentView: View {
     @EnvironmentObject var appState: AppState
     @State private var showAddDevice = false
+    @State private var selectedDeviceID: String?
 
     var body: some View {
         HStack(spacing: 0) {
@@ -53,22 +54,41 @@ struct ContentView: View {
                 }
                 .frame(maxWidth: .infinity)
             } else {
-                List(appState.devices) { device in
-                    DeviceRow(device: device)
+                List(selection: $selectedDeviceID) {
+                    ForEach(appState.devices) { device in
+                        DeviceRow(device: device)
+                            .tag(device.id)
+                    }
                 }
+                .listStyle(.sidebar)
             }
 
             Divider()
 
             if let showFile = appState.showFile {
-                VStack(alignment: .leading, spacing: 4) {
-                    Label(showFile.fileName, systemImage: "doc.fill")
-                        .font(.caption)
-                        .lineLimit(1)
-                    Text("\(showFile.entries.count) frequencies")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                Button {
+                    selectedDeviceID = nil
+                } label: {
+                    HStack {
+                        Image(systemName: "doc.fill")
+                            .foregroundColor(.accentColor)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(showFile.fileName)
+                                .font(.caption)
+                                .lineLimit(1)
+                            Text("\(showFile.entries.count) frequencies")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        if selectedDeviceID == nil {
+                            Image(systemName: "chevron.right")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
                 }
+                .buttonStyle(.plain)
                 .padding(12)
             }
 
@@ -86,41 +106,48 @@ struct ContentView: View {
 
     private var detailView: some View {
         Group {
-            if appState.showFile != nil {
+            if let deviceID = selectedDeviceID,
+               appState.devices.contains(where: { $0.id == deviceID }) {
+                DeviceDetailView(appState: appState, deviceID: deviceID)
+            } else if appState.showFile != nil {
                 FrequencyAssignmentView()
             } else {
-                VStack(spacing: 16) {
-                    Image(systemName: "antenna.radiowaves.left.and.right")
-                        .font(.system(size: 48))
-                        .foregroundStyle(.secondary)
-                    Text("Sennheiser Freq Manager")
-                        .font(.title2)
-                        .fontWeight(.medium)
-                    Text("Open a Wireless Workbench show file (.shw)\nto load coordinated frequencies")
-                        .multilineTextAlignment(.center)
-                        .foregroundStyle(.secondary)
-
-                    Button("Open WWB File…") {
-                        openFilePanel()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-
-                    HStack(spacing: 12) {
-                        Button("Scan Network") {
-                            appState.startDiscovery()
-                        }
-                        .disabled(appState.isScanning)
-
-                        Button("Add Device…") {
-                            showAddDevice = true
-                        }
-                    }
-                }
+                welcomeView
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    private var welcomeView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "antenna.radiowaves.left.and.right")
+                .font(.system(size: 48))
+                .foregroundStyle(.secondary)
+            Text("Sennheiser Freq Manager")
+                .font(.title2)
+                .fontWeight(.medium)
+            Text("Open a Wireless Workbench show file (.shw)\nto load coordinated frequencies")
+                .multilineTextAlignment(.center)
+                .foregroundStyle(.secondary)
+
+            Button("Open WWB File…") {
+                openFilePanel()
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+
+            HStack(spacing: 12) {
+                Button("Scan Network") {
+                    appState.startDiscovery()
+                }
+                .disabled(appState.isScanning)
+
+                Button("Add Device…") {
+                    showAddDevice = true
+                }
+            }
+        }
     }
 
     private func openFilePanel() {
