@@ -109,6 +109,7 @@ struct FrequencyAssignmentView: View {
 
             TableColumn("Assign to") { entry in
                 DevicePickerCell(
+                    appState: appState,
                     entryID: entry.id,
                     frequencyKHz: entry.frequencyKHz
                 )
@@ -131,7 +132,7 @@ struct FrequencyAssignmentView: View {
 }
 
 struct DevicePickerCell: View {
-    @EnvironmentObject var appState: AppState
+    @ObservedObject var appState: AppState
     let entryID: String
     let frequencyKHz: Int
 
