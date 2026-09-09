@@ -29,7 +29,8 @@ class RFScanManager: ObservableObject {
         stepResolution: Int = 2,
         iterations: Int = 10,
         aggregation: String = "average",
-        serialPort: String? = nil
+        serialPort: String? = nil,
+        filePrefix: String = "scan"
     ) {
         guard !ranges.isEmpty else {
             errorMessage = "Kein Frequenzbereich ausgewählt"
@@ -47,7 +48,11 @@ class RFScanManager: ObservableObject {
 
         let ts = DateFormatter()
         ts.dateFormat = "yyyy-MM-dd-HHmmss"
-        let filename = "scan-\(ts.string(from: Date())).csv"
+        let prefix = filePrefix.trimmingCharacters(in: .whitespaces)
+        let safeName = (prefix.isEmpty ? "scan" : prefix)
+            .replacingOccurrences(of: "/", with: "-")
+            .replacingOccurrences(of: " ", with: "-")
+        let filename = "\(safeName)-\(ts.string(from: Date())).csv"
         let outputPath = (outputDirectory as NSString).appendingPathComponent(filename)
 
         let totalChunks = FrequencyBand.totalChunks(ranges: ranges, stepResolution: stepResolution)

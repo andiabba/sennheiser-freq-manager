@@ -29,28 +29,70 @@ extension FrequencyBand {
         .init(id: "senn-e",   manufacturer: "Sennheiser", name: "E",   startMHz: 823, endMHz: 865),
     ]
 
-    // MARK: - Shure (Wireless & PSM)
+    // MARK: - Shure ULXD / QLX-D / BLX
 
-    static let shureBands: [FrequencyBand] = [
-        .init(id: "shure-g50",  manufacturer: "Shure", name: "G50",  startMHz: 470, endMHz: 534),
-        .init(id: "shure-g57",  manufacturer: "Shure", name: "G57",  startMHz: 470, endMHz: 534),
-        .init(id: "shure-g20",  manufacturer: "Shure", name: "G20",  startMHz: 488, endMHz: 524),
-        .init(id: "shure-h20",  manufacturer: "Shure", name: "H20",  startMHz: 518, endMHz: 554),
-        .init(id: "shure-h50",  manufacturer: "Shure", name: "H50",  startMHz: 534, endMHz: 598),
-        .init(id: "shure-h54",  manufacturer: "Shure", name: "H54",  startMHz: 534, endMHz: 598),
-        .init(id: "shure-j52",  manufacturer: "Shure", name: "J52",  startMHz: 558, endMHz: 616),
-        .init(id: "shure-j50a", manufacturer: "Shure", name: "J50A", startMHz: 572, endMHz: 616),
-        .init(id: "shure-j50",  manufacturer: "Shure", name: "J50",  startMHz: 572, endMHz: 636),
-        .init(id: "shure-j10",  manufacturer: "Shure", name: "J10",  startMHz: 584, endMHz: 644),
-        .init(id: "shure-k1",   manufacturer: "Shure", name: "K1",   startMHz: 596, endMHz: 668),
-        .init(id: "shure-k51",  manufacturer: "Shure", name: "K51",  startMHz: 606, endMHz: 670),
-        .init(id: "shure-k53",  manufacturer: "Shure", name: "K53",  startMHz: 606, endMHz: 699),
-        .init(id: "shure-l50",  manufacturer: "Shure", name: "L50",  startMHz: 632, endMHz: 696),
-        .init(id: "shure-l57",  manufacturer: "Shure", name: "L57",  startMHz: 650, endMHz: 694),
-        .init(id: "shure-p2",   manufacturer: "Shure", name: "P2",   startMHz: 702, endMHz: 736),
+    static let shureWirelessBands: [FrequencyBand] = [
+        .init(id: "shure-g50",  manufacturer: "Shure ULXD", name: "G50",  startMHz: 470, endMHz: 534),
+        .init(id: "shure-h50",  manufacturer: "Shure ULXD", name: "H50",  startMHz: 534, endMHz: 598),
+        .init(id: "shure-j50",  manufacturer: "Shure ULXD", name: "J50",  startMHz: 572, endMHz: 636),
+        .init(id: "shure-j50a", manufacturer: "Shure ULXD", name: "J50A", startMHz: 572, endMHz: 616),
+        .init(id: "shure-k51",  manufacturer: "Shure ULXD", name: "K51",  startMHz: 606, endMHz: 670),
+        .init(id: "shure-l50",  manufacturer: "Shure ULXD", name: "L50",  startMHz: 632, endMHz: 696),
     ]
 
-    static let allBands: [FrequencyBand] = sennheiserBands + shureBands
+    // MARK: - Shure Axient Digital
+
+    static let shureAxientBands: [FrequencyBand] = [
+        .init(id: "shure-g57",  manufacturer: "Shure AD", name: "G57",  startMHz: 470, endMHz: 534),
+        .init(id: "shure-h54",  manufacturer: "Shure AD", name: "H54",  startMHz: 534, endMHz: 598),
+        .init(id: "shure-j52",  manufacturer: "Shure AD", name: "J52",  startMHz: 558, endMHz: 616),
+        .init(id: "shure-x52",  manufacturer: "Shure AD", name: "X52",  startMHz: 580, endMHz: 602),
+        .init(id: "shure-k53",  manufacturer: "Shure AD", name: "K53",  startMHz: 606, endMHz: 699),
+        .init(id: "shure-k58",  manufacturer: "Shure AD", name: "K58",  startMHz: 622, endMHz: 698),
+        .init(id: "shure-l57",  manufacturer: "Shure AD", name: "L57",  startMHz: 650, endMHz: 694),
+        .init(id: "shure-q53",  manufacturer: "Shure AD", name: "Q53",  startMHz: 470, endMHz: 534),
+    ]
+
+    // MARK: - Shure PSM 300
+
+    static let shurePSM300Bands: [FrequencyBand] = [
+        .init(id: "shure-psm3-g20",  manufacturer: "Shure PSM 300", name: "G20",  startMHz: 488, endMHz: 512),
+        .init(id: "shure-psm3-h20",  manufacturer: "Shure PSM 300", name: "H20",  startMHz: 518, endMHz: 542),
+        .init(id: "shure-psm3-j10",  manufacturer: "Shure PSM 300", name: "J10",  startMHz: 584, endMHz: 608),
+        .init(id: "shure-psm3-k3e",  manufacturer: "Shure PSM 300", name: "K3E",  startMHz: 606, endMHz: 630),
+        .init(id: "shure-psm3-k12",  manufacturer: "Shure PSM 300", name: "K12",  startMHz: 614, endMHz: 638),
+        .init(id: "shure-psm3-l19",  manufacturer: "Shure PSM 300", name: "L19",  startMHz: 630, endMHz: 654),
+        .init(id: "shure-psm3-s8",   manufacturer: "Shure PSM 300", name: "S8",   startMHz: 823, endMHz: 832),
+        .init(id: "shure-psm3-t11",  manufacturer: "Shure PSM 300", name: "T11",  startMHz: 863, endMHz: 865),
+    ]
+
+    // MARK: - Shure PSM 900 / 1000
+
+    static let shurePSM900Bands: [FrequencyBand] = [
+        .init(id: "shure-psm9-g6",   manufacturer: "Shure PSM 900", name: "G6",   startMHz: 470, endMHz: 506),
+        .init(id: "shure-psm9-g7",   manufacturer: "Shure PSM 900", name: "G7",   startMHz: 506, endMHz: 542),
+        .init(id: "shure-psm9-g14",  manufacturer: "Shure PSM 900", name: "G14",  startMHz: 554, endMHz: 626),
+        .init(id: "shure-psm9-k1",   manufacturer: "Shure PSM 900", name: "K1",   startMHz: 596, endMHz: 668),
+        .init(id: "shure-psm9-k2",   manufacturer: "Shure PSM 900", name: "K2",   startMHz: 614, endMHz: 638),
+        .init(id: "shure-psm9-l6",   manufacturer: "Shure PSM 900", name: "L6",   startMHz: 656, endMHz: 680),
+        .init(id: "shure-psm10-g10", manufacturer: "Shure PSM 1000", name: "G10", startMHz: 470, endMHz: 542),
+        .init(id: "shure-psm10-j8a", manufacturer: "Shure PSM 1000", name: "J8A", startMHz: 554, endMHz: 616),
+        .init(id: "shure-psm10-k8e", manufacturer: "Shure PSM 1000", name: "K8E", startMHz: 606, endMHz: 694),
+        .init(id: "shure-psm10-l8e", manufacturer: "Shure PSM 1000", name: "L8E", startMHz: 626, endMHz: 698),
+    ]
+
+    static let allBands: [FrequencyBand] =
+        sennheiserBands + shureWirelessBands + shureAxientBands + shurePSM300Bands + shurePSM900Bands
+
+    static var bandGroups: [(title: String, bands: [FrequencyBand])] {
+        [
+            ("Sennheiser EW G4", sennheiserBands),
+            ("Shure ULXD / QLX-D", shureWirelessBands),
+            ("Shure Axient Digital", shureAxientBands),
+            ("Shure PSM 300", shurePSM300Bands),
+            ("Shure PSM 900 / 1000", shurePSM900Bands),
+        ]
+    }
 
     // MARK: - Range merging
 

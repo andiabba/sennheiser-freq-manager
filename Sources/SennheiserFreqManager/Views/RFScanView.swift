@@ -11,6 +11,7 @@ struct RFScanView: View {
     @State private var iterations = 10
     @State private var aggregation = "average"
     @State private var serialPort = ""
+    @State private var scanName = "scan"
 
     private var mergedRanges: [FrequencyBand.ScanRange] {
         var bands = FrequencyBand.allBands.filter { selectedBandIDs.contains($0.id) }
@@ -29,6 +30,14 @@ struct RFScanView: View {
         FrequencyBand.totalChunks(ranges: mergedRanges, stepResolution: stepResolution)
     }
 
+    private var previewFilename: String {
+        let ts = DateFormatter()
+        ts.dateFormat = "yyyy-MM-dd-HHmmss"
+        let base = scanName.trimmingCharacters(in: .whitespaces)
+        let name = base.isEmpty ? "scan" : base
+        return "\(name)-\(ts.string(from: Date())).csv"
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
@@ -36,6 +45,7 @@ struct RFScanView: View {
                 bandSelection
                 customRange
                 if !mergedRanges.isEmpty { scanSummary }
+                outputSection
                 parameters
                 serialPortSection
                 scanControls
@@ -72,10 +82,15 @@ struct RFScanView: View {
             Text("Frequenzbänder")
                 .font(.headline)
 
-            HStack(alignment: .top, spacing: 24) {
-                bandGroup("Sennheiser", bands: FrequencyBand.sennheiserBands)
-                Divider()
-                bandGroup("Shure", bands: FrequencyBand.shureBands)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .top, spacing: 20) {
+                    ForEach(FrequencyBand.bandGroups, id: \.title) { group in
+                        bandGroup(group.title, bands: group.bands)
+                        if group.title != FrequencyBand.bandGroups.last?.title {
+                            Divider()
+                        }
+                    }
+                }
             }
         }
         .padding()
@@ -114,7 +129,7 @@ struct RFScanView: View {
                     HStack {
                         Text(band.name)
                             .fontWeight(.medium)
-                            .frame(width: 36, alignment: .leading)
+                            .frame(width: 40, alignment: .leading)
                         Text(band.rangeString)
                             .foregroundStyle(.secondary)
                             .font(.caption)
@@ -123,7 +138,7 @@ struct RFScanView: View {
                 .toggleStyle(.checkbox)
             }
         }
-        .frame(minWidth: 200, alignment: .leading)
+        .frame(minWidth: 190, alignment: .leading)
     }
 
     // MARK: - Custom range
@@ -170,6 +185,46 @@ struct RFScanView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.accentColor.opacity(0.08))
         .cornerRadius(6)
+    }
+
+    // MARK: - Output
+
+    private var outputSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Ausgabe")
+                .font(.headline)
+
+            HStack {
+                Text("Dateiname:")
+                    .foregroundStyle(.secondary)
+                TextField("scan", text: $scanName)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(maxWidth: 200)
+                Text("-\(datePreview()).csv")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+
+            HStack {
+                Text("Ordner:")
+                    .foregroundStyle(.secondary)
+                Text(scanManager.outputDirectory)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Button("Ändern…") {
+                    chooseOutputDirectory()
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
+
+            Text("Vorschau: \(previewFilename)")
+                .font(.caption)
+                .monospacedDigit()
+                .foregroundStyle(.tertiary)
+        }
     }
 
     // MARK: - Parameters
@@ -260,12 +315,14 @@ struct RFScanView: View {
                     .tint(.red)
                 } else {
                     Button("Scan starten") {
+                        let name = scanName.trimmingCharacters(in: .whitespaces)
                         scanManager.scan(
                             ranges: mergedRanges,
                             stepResolution: stepResolution,
                             iterations: iterations,
                             aggregation: aggregation,
-                            serialPort: serialPort.isEmpty ? nil : serialPort
+                            serialPort: serialPort.isEmpty ? nil : serialPort,
+                            filePrefix: name.isEmpty ? "scan" : name
                         )
                     }
                     .buttonStyle(.borderedProminent)
@@ -319,6 +376,25 @@ struct RFScanView: View {
                 .buttonStyle(.bordered)
                 .controlSize(.small)
             }
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func datePreview() -> String {
+        let ts = DateFormatter()
+        ts.dateFormat = "yyyy-MM-dd-HHmmss"
+        return ts.string(from: Date())
+    }
+
+    private func chooseOutputDirectory() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.message = "Ausgabeordner für Scan-CSV wählen"
+        if panel.runModal() == .OK, let url = panel.url {
+            scanManager.outputDirectory = url.path
         }
     }
 }
