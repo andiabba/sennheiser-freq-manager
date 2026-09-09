@@ -171,13 +171,13 @@ class SennheiserProtocol {
         setInt(device: device, command: "Sensitivity", value: max(-42, min(0, dB)), completion: completion)
     }
 
-    func queryMode(device: SennheiserDevice, completion: @escaping (Result<SennheiserDevice.AudioMode, Error>) -> Void) {
+    func queryMode(device: SennheiserDevice, completion: @escaping (Result<SennheiserDevice.TxMode, Error>) -> Void) {
         queryInt(device: device, command: "Mode") { result in
-            completion(result.map { SennheiserDevice.AudioMode(protocolValue: $0) })
+            completion(result.map { SennheiserDevice.TxMode(protocolValue: $0) })
         }
     }
 
-    func setMode(device: SennheiserDevice, mode: SennheiserDevice.AudioMode, completion: @escaping (Result<Void, Error>) -> Void) {
+    func setMode(device: SennheiserDevice, mode: SennheiserDevice.TxMode, completion: @escaping (Result<Void, Error>) -> Void) {
         setInt(device: device, command: "Mode", value: mode.protocolValue, completion: completion)
     }
 
@@ -236,25 +236,25 @@ class SennheiserProtocol {
     }
 
     func setRxBalance(device: SennheiserDevice, value: Int, completion: @escaping (Result<Void, Error>) -> Void) {
-        setInt(device: device, command: "Balance", value: max(-12, min(12, value)), completion: completion)
+        setInt(device: device, command: "Balance", value: max(-15, min(15, value)), completion: completion)
     }
 
-    func queryRxMode(device: SennheiserDevice, completion: @escaping (Result<SennheiserDevice.AudioMode, Error>) -> Void) {
+    func queryRxMode(device: SennheiserDevice, completion: @escaping (Result<SennheiserDevice.RxMode, Error>) -> Void) {
         queryInt(device: device, command: "RxMode") { result in
-            completion(result.map { SennheiserDevice.AudioMode(protocolValue: $0) })
+            completion(result.map { SennheiserDevice.RxMode(protocolValue: $0) })
         }
     }
 
-    func setRxMode(device: SennheiserDevice, mode: SennheiserDevice.AudioMode, completion: @escaping (Result<Void, Error>) -> Void) {
+    func setRxMode(device: SennheiserDevice, mode: SennheiserDevice.RxMode, completion: @escaping (Result<Void, Error>) -> Void) {
         setInt(device: device, command: "RxMode", value: mode.protocolValue, completion: completion)
     }
 
-    func queryRxLimiter(device: SennheiserDevice, completion: @escaping (Result<Bool, Error>) -> Void) {
-        queryBool(device: device, command: "Limiter", completion: completion)
+    func queryRxLimiter(device: SennheiserDevice, completion: @escaping (Result<Int, Error>) -> Void) {
+        queryInt(device: device, command: "Limiter", completion: completion)
     }
 
-    func setRxLimiter(device: SennheiserDevice, enabled: Bool, completion: @escaping (Result<Void, Error>) -> Void) {
-        setBool(device: device, command: "Limiter", value: enabled, completion: completion)
+    func setRxLimiter(device: SennheiserDevice, value: Int, completion: @escaping (Result<Void, Error>) -> Void) {
+        setInt(device: device, command: "Limiter", value: value, completion: completion)
     }
 
     func queryRxHighBoost(device: SennheiserDevice, completion: @escaping (Result<Bool, Error>) -> Void) {
@@ -270,7 +270,7 @@ class SennheiserProtocol {
     }
 
     func setRxSquelch(device: SennheiserDevice, value: Int, completion: @escaping (Result<Void, Error>) -> Void) {
-        setInt(device: device, command: "Squelch", value: max(0, min(36, value)), completion: completion)
+        setInt(device: device, command: "Squelch", value: max(5, min(25, value)), completion: completion)
     }
 
     // MARK: - Push / Connection

@@ -6,12 +6,8 @@ struct DeviceDetailView: View {
 
     @State private var editingName = ""
     @State private var editingFrequency = ""
-    @State private var editingBank = ""
-    @State private var editingChannel = ""
     @State private var isEditingName = false
     @State private var isEditingFrequency = false
-    @State private var isEditingBank = false
-    @State private var isEditingChannel = false
 
     private var device: SennheiserDevice? {
         appState.devices.first { $0.id == deviceID }
@@ -107,24 +103,47 @@ struct DeviceDetailView: View {
 
             // Bank
             settingRow("Bank") {
-                editableInt(
-                    value: device.bank,
-                    editing: $editingBank,
-                    isEditing: $isEditingBank,
-                    onSubmit: { appState.setDeviceBank(device, bank: $0) }
-                )
+                HStack {
+                    Text(device.bankDisplayString)
+                        .monospacedDigit()
+                    Spacer()
+                    Picker("", selection: Binding(
+                        get: { device.bank ?? 1 },
+                        set: { appState.setDeviceBank(device, bank: $0) }
+                    )) {
+                        ForEach(1...20, id: \.self) { b in
+                            Text("\(b)").tag(b)
+                        }
+                        ForEach(1...6, id: \.self) { u in
+                            Text("U\(u)").tag(20 + u)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(maxWidth: 100)
+                    .labelsHidden()
+                }
             }
 
             Divider()
 
             // Channel
             settingRow("Channel") {
-                editableInt(
-                    value: device.channel,
-                    editing: $editingChannel,
-                    isEditing: $isEditingChannel,
-                    onSubmit: { appState.setDeviceChannel(device, channel: $0) }
-                )
+                HStack {
+                    Text(device.channel != nil ? "\(device.channel!)" : "—")
+                        .monospacedDigit()
+                    Spacer()
+                    Picker("", selection: Binding(
+                        get: { device.channel ?? 1 },
+                        set: { appState.setDeviceChannel(device, channel: $0) }
+                    )) {
+                        ForEach(SennheiserDevice.channelRange, id: \.self) { ch in
+                            Text("\(ch)").tag(ch)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(maxWidth: 80)
+                    .labelsHidden()
+                }
             }
 
             Divider()
@@ -163,33 +182,32 @@ struct DeviceDetailView: View {
 
             Divider()
 
-            // Sensitivity
+            // Sensitivity (0 to -42, step 3)
             settingRow("Sensitivity") {
                 HStack {
-                    Text("\(device.sensitivity) dB")
-                        .monospacedDigit()
-                        .frame(width: 55, alignment: .trailing)
-                    Slider(
-                        value: Binding(
-                            get: { Double(device.sensitivity) },
-                            set: { appState.setDeviceSensitivity(device, dB: Int($0)) }
-                        ),
-                        in: -42...0,
-                        step: 3
-                    )
-                    .frame(maxWidth: 200)
+                    Picker("", selection: Binding(
+                        get: { device.sensitivity },
+                        set: { appState.setDeviceSensitivity(device, dB: $0) }
+                    )) {
+                        ForEach(SennheiserDevice.sensitivityValues, id: \.self) { v in
+                            Text("\(v) dB").tag(v)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(maxWidth: 100)
+                    .labelsHidden()
                 }
             }
 
             Divider()
 
-            // Mode
+            // Mode (Mono / Stereo)
             settingRow("Mode") {
                 Picker("", selection: Binding(
                     get: { device.mode },
                     set: { appState.setDeviceMode(device, mode: $0) }
                 )) {
-                    ForEach(SennheiserDevice.AudioMode.allCases, id: \.self) { mode in
+                    ForEach(SennheiserDevice.TxMode.allCases, id: \.self) { mode in
                         Text(mode.rawValue).tag(mode)
                     }
                 }
@@ -202,7 +220,7 @@ struct DeviceDetailView: View {
 
             // Auto Lock
             settingRow("Auto Lock") {
-                Toggle(device.autoLock ? "Locked" : "Unlocked", isOn: Binding(
+                Toggle(device.autoLock ? "On" : "Off", isOn: Binding(
                     get: { device.autoLock },
                     set: { appState.setDeviceAutoLock(device, locked: $0) }
                 ))
@@ -222,7 +240,7 @@ struct DeviceDetailView: View {
 
             Divider()
 
-            // RF Power
+            // RF Power (10 / 30 / 50 mW)
             settingRow("RF Power") {
                 Picker("", selection: Binding(
                     get: { device.rfPower },
@@ -272,7 +290,7 @@ struct DeviceDetailView: View {
 
             // RX Auto Lock
             settingRow("Auto Lock") {
-                Toggle(device.rxAutoLock ? "Locked" : "Unlocked", isOn: Binding(
+                Toggle(device.rxAutoLock ? "On" : "Off", isOn: Binding(
                     get: { device.rxAutoLock },
                     set: { appState.setRxAutoLock(device, locked: $0) }
                 ))
@@ -281,39 +299,41 @@ struct DeviceDetailView: View {
 
             Divider()
 
-            // Balance
+            // Balance (L15...L=R...R15)
             settingRow("Balance") {
-                HStack {
-                    Text("L")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Slider(
-                        value: Binding(
-                            get: { Double(device.rxBalance) },
-                            set: { appState.setRxBalance(device, value: Int($0)) }
-                        ),
-                        in: -12...12,
-                        step: 1
-                    )
-                    .frame(maxWidth: 200)
-                    Text("R")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text("\(device.rxBalance)")
-                        .monospacedDigit()
-                        .frame(width: 30, alignment: .trailing)
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text("L")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Slider(
+                            value: Binding(
+                                get: { Double(device.rxBalance) },
+                                set: { appState.setRxBalance(device, value: Int($0)) }
+                            ),
+                            in: -15...15,
+                            step: 1
+                        )
+                        .frame(maxWidth: 200)
+                        Text("R")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text(device.balanceDisplayString)
+                            .monospacedDigit()
+                            .frame(width: 45, alignment: .trailing)
+                    }
                 }
             }
 
             Divider()
 
-            // RX Mode
+            // RX Mode (Stereo / Focus)
             settingRow("Mode") {
                 Picker("", selection: Binding(
                     get: { device.rxMode },
                     set: { appState.setRxMode(device, mode: $0) }
                 )) {
-                    ForEach(SennheiserDevice.AudioMode.allCases, id: \.self) { mode in
+                    ForEach(SennheiserDevice.RxMode.allCases, id: \.self) { mode in
                         Text(mode.rawValue).tag(mode)
                     }
                 }
@@ -324,20 +344,27 @@ struct DeviceDetailView: View {
 
             Divider()
 
-            // Limiter
+            // Limiter (Off / -18 / -12 / -6 dB)
             settingRow("Limiter") {
-                Toggle(device.rxLimiter ? "On" : "Off", isOn: Binding(
+                Picker("", selection: Binding(
                     get: { device.rxLimiter },
-                    set: { appState.setRxLimiter(device, enabled: $0) }
-                ))
-                .toggleStyle(.switch)
+                    set: { appState.setRxLimiter(device, value: $0) }
+                )) {
+                    Text("Off").tag(0)
+                    Text("-18 dB").tag(-18)
+                    Text("-12 dB").tag(-12)
+                    Text("-6 dB").tag(-6)
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 280)
+                .labelsHidden()
             }
 
             Divider()
 
             // High Boost
             settingRow("High Boost") {
-                Toggle(device.rxHighBoost ? "On" : "Off", isOn: Binding(
+                Toggle(device.rxHighBoost ? "On (+8 dB @ 8 kHz)" : "Off", isOn: Binding(
                     get: { device.rxHighBoost },
                     set: { appState.setRxHighBoost(device, enabled: $0) }
                 ))
@@ -346,21 +373,20 @@ struct DeviceDetailView: View {
 
             Divider()
 
-            // Squelch
+            // Squelch (5 to 25 dBµV, step 2)
             settingRow("Squelch") {
                 HStack {
-                    Text("\(device.rxSquelch)")
-                        .monospacedDigit()
-                        .frame(width: 30, alignment: .trailing)
-                    Slider(
-                        value: Binding(
-                            get: { Double(device.rxSquelch) },
-                            set: { appState.setRxSquelch(device, value: Int($0)) }
-                        ),
-                        in: 0...36,
-                        step: 1
-                    )
-                    .frame(maxWidth: 200)
+                    Picker("", selection: Binding(
+                        get: { device.rxSquelch },
+                        set: { appState.setRxSquelch(device, value: $0) }
+                    )) {
+                        ForEach(SennheiserDevice.squelchValues, id: \.self) { v in
+                            Text("\(v) dBµV").tag(v)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(maxWidth: 120)
+                    .labelsHidden()
                 }
             }
         }
@@ -412,48 +438,6 @@ struct DeviceDetailView: View {
                     Spacer()
                     Button("Edit") {
                         editing.wrappedValue = value
-                        isEditing.wrappedValue = true
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                }
-            }
-        }
-    }
-
-    private func editableInt(
-        value: Int?,
-        editing: Binding<String>,
-        isEditing: Binding<Bool>,
-        onSubmit: @escaping (Int) -> Void
-    ) -> some View {
-        Group {
-            if isEditing.wrappedValue {
-                HStack {
-                    TextField("", text: editing)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 80)
-                        .onSubmit {
-                            guard let v = Int(editing.wrappedValue) else { return }
-                            onSubmit(v)
-                            isEditing.wrappedValue = false
-                        }
-                    Button("Set") {
-                        guard let v = Int(editing.wrappedValue) else { return }
-                        onSubmit(v)
-                        isEditing.wrappedValue = false
-                    }
-                    .buttonStyle(.bordered)
-                    Button("Cancel") { isEditing.wrappedValue = false }
-                        .buttonStyle(.bordered)
-                }
-            } else {
-                HStack {
-                    Text(value != nil ? "\(value!)" : "—")
-                        .monospacedDigit()
-                    Spacer()
-                    Button("Edit") {
-                        editing.wrappedValue = value != nil ? "\(value!)" : ""
                         isEditing.wrappedValue = true
                     }
                     .buttonStyle(.bordered)

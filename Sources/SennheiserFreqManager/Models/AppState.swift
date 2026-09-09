@@ -182,7 +182,7 @@ class AppState: ObservableObject {
         sennheiserProtocol.setSensitivity(device: device, dB: dB) { _ in }
     }
 
-    func setDeviceMode(_ device: SennheiserDevice, mode: SennheiserDevice.AudioMode) {
+    func setDeviceMode(_ device: SennheiserDevice, mode: SennheiserDevice.TxMode) {
         updateDevice(device.id) { $0.mode = mode }
         sennheiserProtocol.setMode(device: device, mode: mode) { _ in }
     }
@@ -224,14 +224,14 @@ class AppState: ObservableObject {
         sennheiserProtocol.setRxBalance(device: device, value: value) { _ in }
     }
 
-    func setRxMode(_ device: SennheiserDevice, mode: SennheiserDevice.AudioMode) {
+    func setRxMode(_ device: SennheiserDevice, mode: SennheiserDevice.RxMode) {
         updateDevice(device.id) { $0.rxMode = mode }
         sennheiserProtocol.setRxMode(device: device, mode: mode) { _ in }
     }
 
-    func setRxLimiter(_ device: SennheiserDevice, enabled: Bool) {
-        updateDevice(device.id) { $0.rxLimiter = enabled }
-        sennheiserProtocol.setRxLimiter(device: device, enabled: enabled) { _ in }
+    func setRxLimiter(_ device: SennheiserDevice, value: Int) {
+        updateDevice(device.id) { $0.rxLimiter = value }
+        sennheiserProtocol.setRxLimiter(device: device, value: value) { _ in }
     }
 
     func setRxHighBoost(_ device: SennheiserDevice, enabled: Bool) {
