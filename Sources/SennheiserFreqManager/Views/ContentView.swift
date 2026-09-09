@@ -3,8 +3,10 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
     @EnvironmentObject var appState: AppState
+    @StateObject private var scanManager = RFScanManager()
     @State private var showAddDevice = false
     @State private var selectedDeviceID: String?
+    @State private var showRFScan = false
 
     var body: some View {
         HStack(spacing: 0) {
@@ -65,8 +67,34 @@ struct ContentView: View {
 
             Divider()
 
+            // RF Explorer Scan button
+            Button {
+                showRFScan = true
+                selectedDeviceID = nil
+            } label: {
+                HStack {
+                    Image(systemName: "wave.3.right")
+                        .foregroundColor(.accentColor)
+                    Text("RF Scan")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                    Spacer()
+                    if scanManager.isScanning {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else if showRFScan {
+                        Image(systemName: "chevron.right")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+            .padding(12)
+
             if let showFile = appState.showFile {
                 Button {
+                    showRFScan = false
                     selectedDeviceID = nil
                 } label: {
                     HStack {
@@ -81,7 +109,7 @@ struct ContentView: View {
                                 .foregroundStyle(.secondary)
                         }
                         Spacer()
-                        if selectedDeviceID == nil {
+                        if selectedDeviceID == nil && !showRFScan {
                             Image(systemName: "chevron.right")
                                 .font(.caption2)
                                 .foregroundStyle(.tertiary)
@@ -109,6 +137,8 @@ struct ContentView: View {
             if let deviceID = selectedDeviceID,
                appState.devices.contains(where: { $0.id == deviceID }) {
                 DeviceDetailView(appState: appState, deviceID: deviceID)
+            } else if showRFScan {
+                RFScanView(scanManager: scanManager)
             } else if appState.showFile != nil {
                 FrequencyAssignmentView()
             } else {
@@ -146,6 +176,14 @@ struct ContentView: View {
                 Button("Add Device…") {
                     showAddDevice = true
                 }
+            }
+
+            Divider()
+                .frame(width: 200)
+                .padding(.vertical, 4)
+
+            Button("RF Explorer Scan…") {
+                showRFScan = true
             }
         }
     }
