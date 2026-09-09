@@ -34,6 +34,7 @@ extension FrequencyBand {
     static let shureWirelessBands: [FrequencyBand] = [
         .init(id: "shure-g50",  manufacturer: "Shure ULXD", name: "G50",  startMHz: 470, endMHz: 534),
         .init(id: "shure-h50",  manufacturer: "Shure ULXD", name: "H50",  startMHz: 534, endMHz: 598),
+        .init(id: "shure-h51",  manufacturer: "Shure ULXD", name: "H51",  startMHz: 534, endMHz: 598),
         .init(id: "shure-j50",  manufacturer: "Shure ULXD", name: "J50",  startMHz: 572, endMHz: 636),
         .init(id: "shure-j50a", manufacturer: "Shure ULXD", name: "J50A", startMHz: 572, endMHz: 616),
         .init(id: "shure-k51",  manufacturer: "Shure ULXD", name: "K51",  startMHz: 606, endMHz: 670),
