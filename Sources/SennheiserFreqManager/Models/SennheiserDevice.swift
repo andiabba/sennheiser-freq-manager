@@ -19,13 +19,19 @@ struct SennheiserDevice: Identifiable, Hashable {
     var warningAfPeak: Bool = true
     var warningRfMute: Bool = true
 
-    // RX Sync Settings
+    // RX Sync Settings (value + sync enable flag per parameter)
     var rxAutoLock: Bool = false
+    var rxAutoLockSync: Bool = true
     var rxBalance: Int = 0         // -15 (L15) to +15 (R15), 0 = L=R
+    var rxBalanceSync: Bool = true
     var rxMode: RxMode = .stereo
+    var rxModeSync: Bool = true
     var rxLimiter: Int = -18       // -18, -12, -6, or 0 = off
+    var rxLimiterSync: Bool = true
     var rxHighBoost: Bool = false
+    var rxHighBoostSync: Bool = true
     var rxSquelch: Int = 5         // 5 to 25, step 2
+    var rxSquelchSync: Bool = true
 
     enum TxMode: String, CaseIterable, Hashable {
         case mono = "Mono"

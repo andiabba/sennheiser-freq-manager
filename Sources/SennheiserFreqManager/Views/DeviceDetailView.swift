@@ -284,12 +284,21 @@ struct DeviceDetailView: View {
 
     private func rxSyncSettings(_ device: SennheiserDevice) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("RX Sync Settings")
-                .font(.headline)
-                .padding(.top, 4)
+            HStack {
+                Text("RX Sync Settings")
+                    .font(.headline)
+                Spacer()
+                Text("Sync")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 40)
+            }
+            .padding(.top, 4)
 
-            // RX Auto Lock
-            settingRow("Auto Lock") {
+            // Auto Lock
+            syncSettingRow("Auto Lock", synced: device.rxAutoLockSync, onSyncToggle: {
+                appState.setRxAutoLockSync(device, enabled: $0)
+            }) {
                 Toggle(device.rxAutoLock ? "On" : "Off", isOn: Binding(
                     get: { device.rxAutoLock },
                     set: { appState.setRxAutoLock(device, locked: $0) }
@@ -300,35 +309,37 @@ struct DeviceDetailView: View {
             Divider()
 
             // Balance (L15...L=R...R15)
-            settingRow("Balance") {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Text("L")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Slider(
-                            value: Binding(
-                                get: { Double(device.rxBalance) },
-                                set: { appState.setRxBalance(device, value: Int($0)) }
-                            ),
-                            in: -15...15,
-                            step: 1
-                        )
-                        .frame(maxWidth: 200)
-                        Text("R")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text(device.balanceDisplayString)
-                            .monospacedDigit()
-                            .frame(width: 45, alignment: .trailing)
-                    }
+            syncSettingRow("Balance", synced: device.rxBalanceSync, onSyncToggle: {
+                appState.setRxBalanceSync(device, enabled: $0)
+            }) {
+                HStack {
+                    Text("L")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Slider(
+                        value: Binding(
+                            get: { Double(device.rxBalance) },
+                            set: { appState.setRxBalance(device, value: Int($0)) }
+                        ),
+                        in: -15...15,
+                        step: 1
+                    )
+                    .frame(maxWidth: 200)
+                    Text("R")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(device.balanceDisplayString)
+                        .monospacedDigit()
+                        .frame(width: 45, alignment: .trailing)
                 }
             }
 
             Divider()
 
             // RX Mode (Stereo / Focus)
-            settingRow("Mode") {
+            syncSettingRow("Mode", synced: device.rxModeSync, onSyncToggle: {
+                appState.setRxModeSync(device, enabled: $0)
+            }) {
                 Picker("", selection: Binding(
                     get: { device.rxMode },
                     set: { appState.setRxMode(device, mode: $0) }
@@ -345,7 +356,9 @@ struct DeviceDetailView: View {
             Divider()
 
             // Limiter (Off / -18 / -12 / -6 dB)
-            settingRow("Limiter") {
+            syncSettingRow("Limiter", synced: device.rxLimiterSync, onSyncToggle: {
+                appState.setRxLimiterSync(device, enabled: $0)
+            }) {
                 Picker("", selection: Binding(
                     get: { device.rxLimiter },
                     set: { appState.setRxLimiter(device, value: $0) }
@@ -363,7 +376,9 @@ struct DeviceDetailView: View {
             Divider()
 
             // High Boost
-            settingRow("High Boost") {
+            syncSettingRow("High Boost", synced: device.rxHighBoostSync, onSyncToggle: {
+                appState.setRxHighBoostSync(device, enabled: $0)
+            }) {
                 Toggle(device.rxHighBoost ? "On (+8 dB @ 8 kHz)" : "Off", isOn: Binding(
                     get: { device.rxHighBoost },
                     set: { appState.setRxHighBoost(device, enabled: $0) }
@@ -374,20 +389,20 @@ struct DeviceDetailView: View {
             Divider()
 
             // Squelch (5 to 25 dBµV, step 2)
-            settingRow("Squelch") {
-                HStack {
-                    Picker("", selection: Binding(
-                        get: { device.rxSquelch },
-                        set: { appState.setRxSquelch(device, value: $0) }
-                    )) {
-                        ForEach(SennheiserDevice.squelchValues, id: \.self) { v in
-                            Text("\(v) dBµV").tag(v)
-                        }
+            syncSettingRow("Squelch", synced: device.rxSquelchSync, onSyncToggle: {
+                appState.setRxSquelchSync(device, enabled: $0)
+            }) {
+                Picker("", selection: Binding(
+                    get: { device.rxSquelch },
+                    set: { appState.setRxSquelch(device, value: $0) }
+                )) {
+                    ForEach(SennheiserDevice.squelchValues, id: \.self) { v in
+                        Text("\(v) dBµV").tag(v)
                     }
-                    .pickerStyle(.menu)
-                    .frame(maxWidth: 120)
-                    .labelsHidden()
                 }
+                .pickerStyle(.menu)
+                .frame(maxWidth: 120)
+                .labelsHidden()
             }
         }
         .padding()
@@ -401,6 +416,34 @@ struct DeviceDetailView: View {
                 .frame(width: 110, alignment: .trailing)
                 .foregroundStyle(.secondary)
             content()
+        }
+    }
+
+    private func syncSettingRow<Content: View>(
+        _ label: String,
+        synced: Bool,
+        onSyncToggle: @escaping (Bool) -> Void,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        HStack(alignment: .center) {
+            Text(label)
+                .frame(width: 110, alignment: .trailing)
+                .foregroundStyle(.secondary)
+            if synced {
+                content()
+            } else {
+                Text("Ignore")
+                    .foregroundStyle(.tertiary)
+                    .italic()
+            }
+            Spacer()
+            Toggle("", isOn: Binding(
+                get: { synced },
+                set: { onSyncToggle($0) }
+            ))
+            .toggleStyle(.checkbox)
+            .labelsHidden()
+            .frame(width: 40)
         }
     }
 

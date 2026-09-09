@@ -244,6 +244,32 @@ class AppState: ObservableObject {
         sennheiserProtocol.setRxSquelch(device: device, value: value) { _ in }
     }
 
+    // MARK: - RX Sync Enable/Ignore flags
+
+    func setRxAutoLockSync(_ device: SennheiserDevice, enabled: Bool) {
+        updateDevice(device.id) { $0.rxAutoLockSync = enabled }
+    }
+
+    func setRxBalanceSync(_ device: SennheiserDevice, enabled: Bool) {
+        updateDevice(device.id) { $0.rxBalanceSync = enabled }
+    }
+
+    func setRxModeSync(_ device: SennheiserDevice, enabled: Bool) {
+        updateDevice(device.id) { $0.rxModeSync = enabled }
+    }
+
+    func setRxLimiterSync(_ device: SennheiserDevice, enabled: Bool) {
+        updateDevice(device.id) { $0.rxLimiterSync = enabled }
+    }
+
+    func setRxHighBoostSync(_ device: SennheiserDevice, enabled: Bool) {
+        updateDevice(device.id) { $0.rxHighBoostSync = enabled }
+    }
+
+    func setRxSquelchSync(_ device: SennheiserDevice, enabled: Bool) {
+        updateDevice(device.id) { $0.rxSquelchSync = enabled }
+    }
+
     // MARK: - Helpers
 
     private func updateDevice(_ id: String, _ update: (inout SennheiserDevice) -> Void) {
