@@ -22,8 +22,18 @@ struct ContentView: View {
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text("Transmitters")
-                    .font(.headline)
+                Button {
+                    selectedDeviceID = nil
+                    showRFScan = false
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "antenna.radiowaves.left.and.right")
+                            .font(.caption)
+                        Text("Transmitters")
+                            .font(.headline)
+                    }
+                }
+                .buttonStyle(.plain)
                 Spacer()
                 Button {
                     showAddDevice = true
@@ -56,7 +66,13 @@ struct ContentView: View {
                 }
                 .frame(maxWidth: .infinity)
             } else {
-                List(selection: $selectedDeviceID) {
+                List(selection: Binding(
+                    get: { selectedDeviceID },
+                    set: { newID in
+                        selectedDeviceID = newID
+                        if newID != nil { showRFScan = false }
+                    }
+                )) {
                     ForEach(appState.devices) { device in
                         DeviceRow(device: device)
                             .tag(device.id)
