@@ -69,7 +69,8 @@ struct WWBParser {
                     groupChannel: "",
                     isActive: true,
                     isBackup: false,
-                    color: "#585858"
+                    color: "#585858",
+                    txPowerMW: nil
                 ))
             }
         }
@@ -185,6 +186,7 @@ private class WWBXMLParser: NSObject, XMLParserDelegate {
             case "channel_name": currentInventoryDevice["channel_name"] = text
             case "series": currentInventoryDevice["series"] = text
             case "model": currentInventoryDevice["model"] = text
+            case "tx_power": currentInventoryDevice["tx_power"] = text
             default: break
             }
         }
@@ -223,6 +225,11 @@ private class WWBXMLParser: NSObject, XMLParserDelegate {
                     }
                 }
 
+                let txPower: Int? = {
+                    if let s = inventoryInfo?["tx_power"], let v = Int(s) { return v }
+                    return nil
+                }()
+
                 let entry = WWBFrequencyEntry(
                     id: entryID,
                     frequencyKHz: freqKHz,
@@ -236,7 +243,8 @@ private class WWBXMLParser: NSObject, XMLParserDelegate {
                     groupChannel: currentEntry["gr_ch"] ?? "",
                     isActive: contextRole == 7,
                     isBackup: contextRole == 9,
-                    color: currentEntry["color"] ?? "#585858"
+                    color: currentEntry["color"] ?? "#585858",
+                    txPowerMW: txPower
                 )
                 entries.append(entry)
             }
