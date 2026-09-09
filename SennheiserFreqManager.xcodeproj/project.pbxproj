@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		031E846DEDE1EA716C596E54 /* FrequencyBand.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA25B5BA753B0680B0E0C13D /* FrequencyBand.swift */; };
+		0C2A60C3614045D1E3736735 /* RFScanManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4750B438D7050FA77CA6C0E1 /* RFScanManager.swift */; };
 		0D1E4B7A087F68B332B93D4D /* FrequencyAssignmentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5EB567BF167BB3A594357F4 /* FrequencyAssignmentView.swift */; };
 		0FC6AE7174F5901690CE2ECC /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA3F502A2549C6CFCECAF7CA /* App.swift */; };
 		18EFEF556E07D507322F21EC /* SennheiserDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4354857F1CE2B03EEC7C4B82 /* SennheiserDevice.swift */; };
@@ -14,28 +16,42 @@
 		52CCB35C85533D4BD0B0081A /* WWBFrequencyPlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C8CBD70755A525169143AA0 /* WWBFrequencyPlan.swift */; };
 		6B4575124DDC938DFE6F26DC /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2272AA66BC66DAFD22F838E /* AppState.swift */; };
 		725198987500DE2960412447 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A085142030953BB37407F1F7 /* ContentView.swift */; };
+		9022FBC730EAC33FB537E0E4 /* RFScanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 042A53B5B7CA57CEF834127F /* RFScanView.swift */; };
 		ADC790110C2BD0553335A3F1 /* SennheiserProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7C04D6846020E3CC0097254 /* SennheiserProtocol.swift */; };
 		B79F251342EB9C237AEDF691 /* DeviceDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E115B656281C4C88F11229C7 /* DeviceDetailView.swift */; };
+		D9149505840AAA21AEB5681F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BDD33A31AF1DDBB41884FE07 /* Assets.xcassets */; };
 		DA6393059779201198678331 /* AddDeviceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBD6DE9F4EBAE0D94BF7E1CA /* AddDeviceView.swift */; };
 		F3E1B4E19E32F9ADFA688207 /* DeviceDiscovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9D8D7E27B6B11B30E5849F3 /* DeviceDiscovery.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		042A53B5B7CA57CEF834127F /* RFScanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RFScanView.swift; sourceTree = "<group>"; };
 		4354857F1CE2B03EEC7C4B82 /* SennheiserDevice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SennheiserDevice.swift; sourceTree = "<group>"; };
 		473A38E752981F38E8DDD786 /* WWBParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WWBParser.swift; sourceTree = "<group>"; };
+		4750B438D7050FA77CA6C0E1 /* RFScanManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RFScanManager.swift; sourceTree = "<group>"; };
 		4C8CBD70755A525169143AA0 /* WWBFrequencyPlan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WWBFrequencyPlan.swift; sourceTree = "<group>"; };
 		5BEB64D5A2FA75BA9AEAAB94 /* SennheiserFreqManager.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SennheiserFreqManager.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A085142030953BB37407F1F7 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		A9D8D7E27B6B11B30E5849F3 /* DeviceDiscovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceDiscovery.swift; sourceTree = "<group>"; };
 		B7C04D6846020E3CC0097254 /* SennheiserProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SennheiserProtocol.swift; sourceTree = "<group>"; };
+		BDD33A31AF1DDBB41884FE07 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		C2272AA66BC66DAFD22F838E /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		DA3F502A2549C6CFCECAF7CA /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
 		DBD6DE9F4EBAE0D94BF7E1CA /* AddDeviceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddDeviceView.swift; sourceTree = "<group>"; };
 		E115B656281C4C88F11229C7 /* DeviceDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceDetailView.swift; sourceTree = "<group>"; };
 		F5EB567BF167BB3A594357F4 /* FrequencyAssignmentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrequencyAssignmentView.swift; sourceTree = "<group>"; };
+		FA25B5BA753B0680B0E0C13D /* FrequencyBand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrequencyBand.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
+		129BF63C38E06983EBCC7F0B /* Scanner */ = {
+			isa = PBXGroup;
+			children = (
+				4750B438D7050FA77CA6C0E1 /* RFScanManager.swift */,
+			);
+			path = Scanner;
+			sourceTree = "<group>";
+		};
 		1BE6811CE86D13AF65EDA0EB /* Products */ = {
 			isa = PBXGroup;
 			children = (
@@ -60,6 +76,7 @@
 				A085142030953BB37407F1F7 /* ContentView.swift */,
 				E115B656281C4C88F11229C7 /* DeviceDetailView.swift */,
 				F5EB567BF167BB3A594357F4 /* FrequencyAssignmentView.swift */,
+				042A53B5B7CA57CEF834127F /* RFScanView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -76,9 +93,11 @@
 			isa = PBXGroup;
 			children = (
 				DA3F502A2549C6CFCECAF7CA /* App.swift */,
+				BDD33A31AF1DDBB41884FE07 /* Assets.xcassets */,
 				E3C584C42E9D0327A7BB660B /* Models */,
 				53BC989248495CFA2A127E6B /* Network */,
 				997C7FAF9982220E43A19241 /* Parser */,
+				129BF63C38E06983EBCC7F0B /* Scanner */,
 				545ED6266A9359C478BFD518 /* Views */,
 			);
 			name = SennheiserFreqManager;
@@ -97,6 +116,7 @@
 			isa = PBXGroup;
 			children = (
 				C2272AA66BC66DAFD22F838E /* AppState.swift */,
+				FA25B5BA753B0680B0E0C13D /* FrequencyBand.swift */,
 				4354857F1CE2B03EEC7C4B82 /* SennheiserDevice.swift */,
 				4C8CBD70755A525169143AA0 /* WWBFrequencyPlan.swift */,
 			);
@@ -111,6 +131,7 @@
 			buildConfigurationList = E405921527C61368C23BFAF7 /* Build configuration list for PBXNativeTarget "SennheiserFreqManager" */;
 			buildPhases = (
 				02B184343E6CFB1FE184C6AF /* Sources */,
+				B9C1239BC9867B257A3D87DD /* Resources */,
 			);
 			buildRules = (
 			);
@@ -156,6 +177,17 @@
 		};
 /* End PBXProject section */
 
+/* Begin PBXResourcesBuildPhase section */
+		B9C1239BC9867B257A3D87DD /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D9149505840AAA21AEB5681F /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		02B184343E6CFB1FE184C6AF /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -168,6 +200,9 @@
 				B79F251342EB9C237AEDF691 /* DeviceDetailView.swift in Sources */,
 				F3E1B4E19E32F9ADFA688207 /* DeviceDiscovery.swift in Sources */,
 				0D1E4B7A087F68B332B93D4D /* FrequencyAssignmentView.swift in Sources */,
+				031E846DEDE1EA716C596E54 /* FrequencyBand.swift in Sources */,
+				0C2A60C3614045D1E3736735 /* RFScanManager.swift in Sources */,
+				9022FBC730EAC33FB537E0E4 /* RFScanView.swift in Sources */,
 				18EFEF556E07D507322F21EC /* SennheiserDevice.swift in Sources */,
 				ADC790110C2BD0553335A3F1 /* SennheiserProtocol.swift in Sources */,
 				52CCB35C85533D4BD0B0081A /* WWBFrequencyPlan.swift in Sources */,
