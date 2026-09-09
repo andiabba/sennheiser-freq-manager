@@ -145,161 +145,103 @@ class AppState: ObservableObject {
     }
 
     // MARK: - Set individual parameters
+    // All setters update local state immediately, then send command in background.
 
     func setDeviceName(_ device: SennheiserDevice, name: String) {
+        updateDevice(device.id) { $0.name = name }
         sennheiserProtocol.setName(device: device, name: name) { [weak self] r in
-            if case .success = r {
-                self?.mainUpdate(device.id) { $0.name = name }
-                DispatchQueue.main.async { self?.statusMessage = "Name set to \(name)" }
-            }
+            if case .failure = r { DispatchQueue.main.async { self?.statusMessage = "Failed to set name" } }
         }
     }
 
     func setDeviceFrequency(_ device: SennheiserDevice, frequencyKHz: Int) {
-        sennheiserProtocol.setFrequency(device: device, frequencyKHz: frequencyKHz) { [weak self] result in
-            DispatchQueue.main.async {
-                switch result {
-                case .success:
-                    self?.updateDevice(device.id) { $0.frequencyKHz = frequencyKHz }
-                    let mhz = Double(frequencyKHz) / 1000.0
-                    self?.statusMessage = "Frequency set to \(String(format: "%.3f MHz", mhz))"
-                case .failure(let error):
-                    self?.statusMessage = "Error: \(error.localizedDescription)"
-                }
-            }
+        updateDevice(device.id) { $0.frequencyKHz = frequencyKHz }
+        let mhz = Double(frequencyKHz) / 1000.0
+        statusMessage = "Frequency set to \(String(format: "%.3f MHz", mhz))"
+        sennheiserProtocol.setFrequency(device: device, frequencyKHz: frequencyKHz) { [weak self] r in
+            if case .failure(let e) = r { DispatchQueue.main.async { self?.statusMessage = "Error: \(e.localizedDescription)" } }
         }
     }
 
     func setDeviceBank(_ device: SennheiserDevice, bank: Int) {
+        updateDevice(device.id) { $0.bank = bank }
         sennheiserProtocol.setBank(device: device, bank: bank) { [weak self] r in
-            if case .success = r {
-                self?.mainUpdate(device.id) { $0.bank = bank }
-                DispatchQueue.main.async { self?.statusMessage = "Bank set to \(bank)" }
-            }
+            if case .failure = r { DispatchQueue.main.async { self?.statusMessage = "Failed to set bank" } }
         }
     }
 
     func setDeviceChannel(_ device: SennheiserDevice, channel: Int) {
+        updateDevice(device.id) { $0.channel = channel }
         sennheiserProtocol.setChannel(device: device, channel: channel) { [weak self] r in
-            if case .success = r {
-                self?.mainUpdate(device.id) { $0.channel = channel }
-                DispatchQueue.main.async { self?.statusMessage = "Channel set to \(channel)" }
-            }
+            if case .failure = r { DispatchQueue.main.async { self?.statusMessage = "Failed to set channel" } }
         }
     }
 
     func setDeviceSensitivity(_ device: SennheiserDevice, dB: Int) {
-        sennheiserProtocol.setSensitivity(device: device, dB: dB) { [weak self] r in
-            if case .success = r {
-                self?.mainUpdate(device.id) { $0.sensitivity = dB }
-                DispatchQueue.main.async { self?.statusMessage = "Sensitivity set to \(dB) dB" }
-            }
-        }
+        updateDevice(device.id) { $0.sensitivity = dB }
+        sennheiserProtocol.setSensitivity(device: device, dB: dB) { _ in }
     }
 
     func setDeviceMode(_ device: SennheiserDevice, mode: SennheiserDevice.AudioMode) {
-        sennheiserProtocol.setMode(device: device, mode: mode) { [weak self] r in
-            if case .success = r {
-                self?.mainUpdate(device.id) { $0.mode = mode }
-                DispatchQueue.main.async { self?.statusMessage = "Mode set to \(mode.rawValue)" }
-            }
-        }
+        updateDevice(device.id) { $0.mode = mode }
+        sennheiserProtocol.setMode(device: device, mode: mode) { _ in }
     }
 
     func setDeviceAutoLock(_ device: SennheiserDevice, locked: Bool) {
-        sennheiserProtocol.setAutoLock(device: device, locked: locked) { [weak self] r in
-            if case .success = r {
-                self?.mainUpdate(device.id) { $0.autoLock = locked }
-                DispatchQueue.main.async { self?.statusMessage = locked ? "Locked" : "Unlocked" }
-            }
-        }
+        updateDevice(device.id) { $0.autoLock = locked }
+        sennheiserProtocol.setAutoLock(device: device, locked: locked) { _ in }
     }
 
     func setDeviceMute(_ device: SennheiserDevice, muted: Bool) {
-        sennheiserProtocol.setMute(device: device, muted: muted) { [weak self] r in
-            if case .success = r {
-                self?.mainUpdate(device.id) { $0.rfMute = muted }
-                DispatchQueue.main.async { self?.statusMessage = muted ? "RF Muted" : "RF Unmuted" }
-            }
-        }
+        updateDevice(device.id) { $0.rfMute = muted }
+        sennheiserProtocol.setMute(device: device, muted: muted) { _ in }
     }
 
     func setDeviceRfPower(_ device: SennheiserDevice, mW: Int) {
-        sennheiserProtocol.setRfPower(device: device, mW: mW) { [weak self] r in
-            if case .success = r {
-                self?.mainUpdate(device.id) { $0.rfPower = mW }
-                DispatchQueue.main.async { self?.statusMessage = "RF Power set to \(mW) mW" }
-            }
-        }
+        updateDevice(device.id) { $0.rfPower = mW }
+        sennheiserProtocol.setRfPower(device: device, mW: mW) { _ in }
     }
 
     func setDeviceWarningAfPeak(_ device: SennheiserDevice, enabled: Bool) {
-        sennheiserProtocol.setWarningAfPeak(device: device, enabled: enabled) { [weak self] r in
-            if case .success = r {
-                self?.mainUpdate(device.id) { $0.warningAfPeak = enabled }
-            }
-        }
+        updateDevice(device.id) { $0.warningAfPeak = enabled }
+        sennheiserProtocol.setWarningAfPeak(device: device, enabled: enabled) { _ in }
     }
 
     func setDeviceWarningRfMute(_ device: SennheiserDevice, enabled: Bool) {
-        sennheiserProtocol.setWarningRfMute(device: device, enabled: enabled) { [weak self] r in
-            if case .success = r {
-                self?.mainUpdate(device.id) { $0.warningRfMute = enabled }
-            }
-        }
+        updateDevice(device.id) { $0.warningRfMute = enabled }
+        sennheiserProtocol.setWarningRfMute(device: device, enabled: enabled) { _ in }
     }
 
     // MARK: - RX Sync Settings
 
     func setRxAutoLock(_ device: SennheiserDevice, locked: Bool) {
-        sennheiserProtocol.setRxAutoLock(device: device, locked: locked) { [weak self] r in
-            if case .success = r {
-                self?.mainUpdate(device.id) { $0.rxAutoLock = locked }
-            }
-        }
+        updateDevice(device.id) { $0.rxAutoLock = locked }
+        sennheiserProtocol.setRxAutoLock(device: device, locked: locked) { _ in }
     }
 
     func setRxBalance(_ device: SennheiserDevice, value: Int) {
-        sennheiserProtocol.setRxBalance(device: device, value: value) { [weak self] r in
-            if case .success = r {
-                self?.mainUpdate(device.id) { $0.rxBalance = value }
-                DispatchQueue.main.async { self?.statusMessage = "Balance set to \(value)" }
-            }
-        }
+        updateDevice(device.id) { $0.rxBalance = value }
+        sennheiserProtocol.setRxBalance(device: device, value: value) { _ in }
     }
 
     func setRxMode(_ device: SennheiserDevice, mode: SennheiserDevice.AudioMode) {
-        sennheiserProtocol.setRxMode(device: device, mode: mode) { [weak self] r in
-            if case .success = r {
-                self?.mainUpdate(device.id) { $0.rxMode = mode }
-                DispatchQueue.main.async { self?.statusMessage = "RX Mode set to \(mode.rawValue)" }
-            }
-        }
+        updateDevice(device.id) { $0.rxMode = mode }
+        sennheiserProtocol.setRxMode(device: device, mode: mode) { _ in }
     }
 
     func setRxLimiter(_ device: SennheiserDevice, enabled: Bool) {
-        sennheiserProtocol.setRxLimiter(device: device, enabled: enabled) { [weak self] r in
-            if case .success = r {
-                self?.mainUpdate(device.id) { $0.rxLimiter = enabled }
-            }
-        }
+        updateDevice(device.id) { $0.rxLimiter = enabled }
+        sennheiserProtocol.setRxLimiter(device: device, enabled: enabled) { _ in }
     }
 
     func setRxHighBoost(_ device: SennheiserDevice, enabled: Bool) {
-        sennheiserProtocol.setRxHighBoost(device: device, enabled: enabled) { [weak self] r in
-            if case .success = r {
-                self?.mainUpdate(device.id) { $0.rxHighBoost = enabled }
-            }
-        }
+        updateDevice(device.id) { $0.rxHighBoost = enabled }
+        sennheiserProtocol.setRxHighBoost(device: device, enabled: enabled) { _ in }
     }
 
     func setRxSquelch(_ device: SennheiserDevice, value: Int) {
-        sennheiserProtocol.setRxSquelch(device: device, value: value) { [weak self] r in
-            if case .success = r {
-                self?.mainUpdate(device.id) { $0.rxSquelch = value }
-                DispatchQueue.main.async { self?.statusMessage = "Squelch set to \(value)" }
-            }
-        }
+        updateDevice(device.id) { $0.rxSquelch = value }
+        sennheiserProtocol.setRxSquelch(device: device, value: value) { _ in }
     }
 
     // MARK: - Helpers
