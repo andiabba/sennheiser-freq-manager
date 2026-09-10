@@ -11,6 +11,7 @@ class AppState: ObservableObject {
     let deviceDiscovery = DeviceDiscovery()
     let sennheiserProtocol = SennheiserProtocol()
     private var binaryConnections: [String: BinaryProtocol] = [:]
+    private var pollTimer: DispatchSourceTimer?
     private var cancellables = Set<AnyCancellable>()
 
     init() {
@@ -132,6 +133,9 @@ class AppState: ObservableObject {
             if case .success(let v) = r { self?.mainUpdate(id) { $0.rfMute = v } }
         }
         p.queryEqualizer(device: device) { _ in }
+
+        // Establish binary connection early to receive state updates
+        _ = getBinaryConnection(for: device)
     }
 
     // MARK: - Set individual parameters
