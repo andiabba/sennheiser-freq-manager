@@ -42,40 +42,44 @@
 
 ### Confirmed Parameter Mapping
 
-| Cmd Pos | State Pos | Parameter | Values |
-|---------|-----------|-----------|--------|
-| 32 | 36 | **RF Power** | 0x01=10mW, 0x02=50mW (0x00=? maybe 30mW) |
-| 33 | 37 | **(unknown, initial=0x01)** | — |
-| 34 | 38 | **Warn AF Peak** | 0x00=off, 0x01=on |
-| 35 | 39 | **Warn RF Mute** | 0x00=off, 0x01=on |
-| 36 | 40 | **(needs verification)** | initial=0x0c(12), seen: 0x18(24), 0x10(16) |
-| 37 | 41 | **(needs verification)** | initial=0x02, changed to 0x01 |
-| 38 | 42 | **(needs verification)** | initial=0x02, changed to 0x01 |
-| 39 | 43 | **(needs verification)** | initial=0x02, changed to 0x01 |
-| 40 | 44 | **(needs verification)** | initial=0x01, changed to 0x05 |
+| Cmd Pos | State Pos | Parameter | Values | Verified |
+|---------|-----------|-----------|--------|----------|
+| 32 | 36 | **RF Power** | 0x00=10mW, 0x01=30mW, 0x02=50mW | Yes |
+| 33 | 37 | **Warn AF Peak** | 0x00=off, 0x01=on | Yes (warnings.pcapng) |
+| 34 | 38 | **Warn RF Mute** | 0x00=off, 0x01=on | Yes (warnings.pcapng) |
+| 35 | 39 | **RX Auto Lock** | 0x00=ignore, 0x01=unlocked, 0x02=locked | Yes (rx auto lock.pcapng) |
+| 36 | 40 | **RX Balance** | 0x00=ignore, 0x01-0x1F=value (0x10=center, range -15..+15) | Yes |
+| 37 | 41 | **RX Mode** | 0x00=ignore, 0x01=stereo, 0x02=focus | Yes |
+| 38 | 42 | **RX Limiter** | 0x00=ignore, 0x01=off, 0x02=-6dB, 0x03=-12dB, 0x04=-18dB | Yes |
+| 39 | 43 | **RX High Boost** | 0x00=ignore, 0x01=off, 0x02=on | Yes |
+| 40 | 44 | **RX Squelch** | 0x00=ignore, non-zero=value | Yes |
 
-### Parameters still to map (positions 36-40 / state 40-44):
-- Auto Lock TX (boolean)
-- RX Balance (-12 to +12?)  
-- RX Mode (Stereo/Mono)
-- RX Limiter
-- RX High Boost (boolean)
-- RX Squelch
+### Sync/Ignore Mechanism
+For RX parameters (cmd[35]-cmd[40] / state[39]-state[44]):
+- Value `0x00` = parameter is **ignored** (not synced to receiver)
+- Any non-zero value = parameter is **synced** with that value
+- No separate sync flag bytes exist — the value itself determines sync state
 
-### Subscribe Command (to receive state updates)
-60-byte packet: header + IP + zeros, with:
-- [40] = 0x04
-- [41] = 0x01
-- [59] = 0x01
+### TX Auto Lock
+Position **unknown** — not in the cmd[32-40] range. May be elsewhere in the binary protocol or controlled via SSC.
+
+### Handshake Sequence
+1. Init packet (18 bytes): `4f 1f f1 ca` + IP + IP + `00 00 01 01 01 01`
+2. State request (11 bytes): `a4 fd f7 ca` + IP + `01 01 01`
+3. Init packet again
+4. Registration (14 bytes): `4c 37 ca ce` + IP(reversed) + `ff ff ff ff 01 01`
+5. Wait 300ms, then two more state requests
 
 ### Init/Keepalive (18 bytes)
 `4f 1f f1 ca` + local_ip + local_ip + `01 00 01 01 01 01`
+(byte[12] = 0x01 for keepalive, 0x00 for init)
 
-### Capture File
-`/Users/andreaslorunser/Desktop/new_wsm.pcapng` — 123MB, contains full WSM session with parameter changes.
+### Capture Files
+- `/Users/andreaslorunser/Desktop/new_wsm.pcapng` — full WSM session
+- `/Users/andreaslorunser/Desktop/warnings.pcapng` — AF Peak and RF Mute toggle
+- `/Users/andreaslorunser/Desktop/rx auto lock.pcapng` — RX Auto Lock toggle
+- `/Users/andreaslorunser/Desktop/ignorewsm.pcapng` — sync/ignore behavior
 
-### TODO for next session
-- Do a controlled capture changing ONE parameter at a time in known order
-- Map remaining positions 36-40 to: Auto Lock, RX Balance, RX Mode, RX Limiter, RX High Boost, RX Squelch
-- Find 30mW RF Power value (probably 0x00 or between 0x01 and 0x02)
-- Implement binary protocol client in Swift
+### TODO
+- Find TX Auto Lock binary position (may need dedicated Wireshark capture)
+- Verify RF Power 30mW value (currently assumed 0x01)

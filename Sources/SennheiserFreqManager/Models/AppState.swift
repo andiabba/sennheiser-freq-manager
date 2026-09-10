@@ -193,14 +193,27 @@ class AppState: ObservableObject {
         conn.onStateUpdate = { [weak self] state in
             self?.mainUpdate(deviceId) {
                 $0.rfPower = state.rfPower
-                $0.autoLock = state.autoLock
                 $0.warningAfPeak = state.warnAfPeak
                 $0.warningRfMute = state.warnRfMute
-                $0.rxBalance = state.rxBalance
-                $0.rxMode = state.rxMode == 1 ? .stereo : .focus
-                $0.rxLimiter = state.rxLimiter
-                $0.rxHighBoost = state.rxHighBoost
-                $0.rxSquelch = state.rxSquelch
+                // RX params: 0x00 = ignored (sync off), non-zero = synced value
+                let rawRxAutoLock = state.raw[39]
+                let rawBalance = state.raw[40]
+                let rawMode = state.raw[41]
+                let rawLimiter = state.raw[42]
+                let rawHighBoost = state.raw[43]
+                let rawSquelch = state.raw[44]
+                $0.rxAutoLock = rawRxAutoLock >= 0x02
+                $0.rxAutoLockSync = rawRxAutoLock != 0
+                $0.rxBalanceSync = rawBalance != 0
+                if rawBalance != 0 { $0.rxBalance = state.rxBalance }
+                $0.rxModeSync = rawMode != 0
+                if rawMode != 0 { $0.rxMode = rawMode == 1 ? .stereo : .focus }
+                $0.rxLimiterSync = rawLimiter != 0
+                if rawLimiter != 0 { $0.rxLimiter = state.rxLimiter }
+                $0.rxHighBoostSync = rawHighBoost != 0
+                if rawHighBoost != 0 { $0.rxHighBoost = state.rxHighBoost }
+                $0.rxSquelchSync = rawSquelch != 0
+                if rawSquelch != 0 { $0.rxSquelch = state.rxSquelch }
             }
         }
         conn.connect(deviceIP: device.host)
@@ -210,7 +223,7 @@ class AppState: ObservableObject {
 
     func setDeviceAutoLock(_ device: SennheiserDevice, locked: Bool) {
         updateDevice(device.id) { $0.autoLock = locked }
-        getBinaryConnection(for: device).setAutoLock(locked)
+        statusMessage = "TX Auto Lock: binary position unknown"
     }
 
     func setDeviceRfPower(_ device: SennheiserDevice, mW: Int) {
@@ -230,7 +243,7 @@ class AppState: ObservableObject {
 
     func setRxAutoLock(_ device: SennheiserDevice, locked: Bool) {
         updateDevice(device.id) { $0.rxAutoLock = locked }
-        statusMessage = "RX Auto Lock: binary position unknown — local only"
+        getBinaryConnection(for: device).setRxAutoLock(locked: locked)
     }
 
     func setRxBalance(_ device: SennheiserDevice, value: Int) {
@@ -259,29 +272,66 @@ class AppState: ObservableObject {
     }
 
     // MARK: - RX Sync Enable/Ignore flags
+    // Value 0x00 = ignored (don't sync), non-zero = sync with this value
 
     func setRxAutoLockSync(_ device: SennheiserDevice, enabled: Bool) {
         updateDevice(device.id) { $0.rxAutoLockSync = enabled }
+        let conn = getBinaryConnection(for: device)
+        if enabled {
+            conn.setRxAutoLock(locked: device.rxAutoLock)
+        } else {
+            conn.ignoreParameter(.rxAutoLock)
+        }
     }
 
     func setRxBalanceSync(_ device: SennheiserDevice, enabled: Bool) {
         updateDevice(device.id) { $0.rxBalanceSync = enabled }
+        let conn = getBinaryConnection(for: device)
+        if enabled {
+            conn.setRxBalance(device.rxBalance)
+        } else {
+            conn.ignoreParameter(.rxBalance)
+        }
     }
 
     func setRxModeSync(_ device: SennheiserDevice, enabled: Bool) {
         updateDevice(device.id) { $0.rxModeSync = enabled }
+        let conn = getBinaryConnection(for: device)
+        if enabled {
+            conn.setRxMode(stereo: device.rxMode == .stereo)
+        } else {
+            conn.ignoreParameter(.rxMode)
+        }
     }
 
     func setRxLimiterSync(_ device: SennheiserDevice, enabled: Bool) {
         updateDevice(device.id) { $0.rxLimiterSync = enabled }
+        let conn = getBinaryConnection(for: device)
+        if enabled {
+            conn.setRxLimiter(dB: device.rxLimiter)
+        } else {
+            conn.ignoreParameter(.rxLimiter)
+        }
     }
 
     func setRxHighBoostSync(_ device: SennheiserDevice, enabled: Bool) {
         updateDevice(device.id) { $0.rxHighBoostSync = enabled }
+        let conn = getBinaryConnection(for: device)
+        if enabled {
+            conn.setRxHighBoost(device.rxHighBoost)
+        } else {
+            conn.ignoreParameter(.rxHighBoost)
+        }
     }
 
     func setRxSquelchSync(_ device: SennheiserDevice, enabled: Bool) {
         updateDevice(device.id) { $0.rxSquelchSync = enabled }
+        let conn = getBinaryConnection(for: device)
+        if enabled {
+            conn.setRxSquelch(dB: device.rxSquelch)
+        } else {
+            conn.ignoreParameter(.rxSquelch)
+        }
     }
 
     // MARK: - Helpers

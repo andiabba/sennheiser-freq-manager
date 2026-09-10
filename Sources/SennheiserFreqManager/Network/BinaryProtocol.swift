@@ -17,11 +17,11 @@ class BinaryProtocol {
         let bank: Int
         let channel: Int
         let rfPower: Int          // state[36]: 0=10mW, 1=30mW, 2=50mW
-        let autoLock: Bool        // state[37]: 0=off, 1=on
-        let warnAfPeak: Bool      // state[38]: 0=off, 1=on
-        let warnRfMute: Bool      // state[39]: 0=off, 1=on
+        let warnAfPeak: Bool      // state[37]: 0=off, 1=on
+        let warnRfMute: Bool      // state[38]: 0=off, 1=on
+        let rxAutoLock: Int       // state[39]: 0=ignore, 1=unlocked, 2=locked
         let rxBalance: Int        // state[40]: raw value, 0x10=center
-        let rxMode: Int           // state[41]: 1=focus, 2=stereo
+        let rxMode: Int           // state[41]: 1=stereo, 2=focus
         let rxLimiter: Int        // state[42]: raw value
         let rxHighBoost: Bool     // state[43]: 1=off, 2=on
         let rxSquelch: Int        // state[44]: raw value
@@ -32,9 +32,9 @@ class BinaryProtocol {
 
     enum Parameter: Int {
         case rfPower = 32      // state[36]
-        case autoLock = 33     // state[37]
-        case warnAfPeak = 34   // state[38]
-        case warnRfMute = 35   // state[39]
+        case warnAfPeak = 33   // state[37]
+        case warnRfMute = 34   // state[38]
+        case rxAutoLock = 35   // state[39]
         case rxBalance = 36    // state[40]
         case rxMode = 37       // state[41]
         case rxLimiter = 38    // state[42]
@@ -253,9 +253,9 @@ class BinaryProtocol {
             bank: Int(data[24]) + 1,
             channel: Int(data[25]) + 1,
             rfPower: Self.decodeRfPower(data[36]),
-            autoLock: data[37] != 0,
-            warnAfPeak: data[38] != 0,
-            warnRfMute: data[39] != 0,
+            warnAfPeak: data[37] != 0,
+            warnRfMute: data[38] != 0,
+            rxAutoLock: Int(data[39]),
             rxBalance: Self.decodeBalance(data[40]),
             rxMode: Int(data[41]),
             rxLimiter: Self.decodeLimiter(data[42]),
@@ -278,16 +278,16 @@ class BinaryProtocol {
         setParameter(.rfPower, value: Self.encodeRfPower(mW: mW))
     }
 
-    func setAutoLock(_ locked: Bool) {
-        setParameter(.autoLock, value: locked ? 0x01 : 0x00)
-    }
-
     func setWarnAfPeak(_ enabled: Bool) {
         setParameter(.warnAfPeak, value: enabled ? 0x01 : 0x00)
     }
 
     func setWarnRfMute(_ enabled: Bool) {
         setParameter(.warnRfMute, value: enabled ? 0x01 : 0x00)
+    }
+
+    func setRxAutoLock(locked: Bool) {
+        setParameter(.rxAutoLock, value: locked ? 0x02 : 0x01)
     }
 
     func setRxBalance(_ balance: Int) {
@@ -308,6 +308,10 @@ class BinaryProtocol {
 
     func setRxSquelch(dB: Int) {
         setParameter(.rxSquelch, value: Self.encodeSquelch(dB: dB))
+    }
+
+    func ignoreParameter(_ param: Parameter) {
+        setParameter(param, value: 0x00)
     }
 
     // MARK: - Low-level
