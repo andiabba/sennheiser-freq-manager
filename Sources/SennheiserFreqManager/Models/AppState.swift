@@ -111,14 +111,15 @@ class AppState: ObservableObject {
         p.queryName(device: device) { [weak self] r in
             if case .success(let v) = r { self?.mainUpdate(id) { $0.name = v } }
         }
-        p.queryFrequency(device: device) { [weak self] r in
-            if case .success(let v) = r { self?.mainUpdate(id) { $0.frequencyKHz = v } }
-        }
-        p.queryBank(device: device) { [weak self] r in
-            if case .success(let v) = r { self?.mainUpdate(id) { $0.bank = v } }
-        }
-        p.queryChannel(device: device) { [weak self] r in
-            if case .success(let v) = r { self?.mainUpdate(id) { $0.channel = v } }
+        // Frequency returns freq + bank + channel in one response
+        p.queryFrequencyInfo(device: device) { [weak self] r in
+            if case .success(let info) = r {
+                self?.mainUpdate(id) {
+                    $0.frequencyKHz = info.frequencyKHz
+                    $0.bank = info.bank
+                    $0.channel = info.channel
+                }
+            }
         }
         p.querySensitivity(device: device) { [weak self] r in
             if case .success(let v) = r { self?.mainUpdate(id) { $0.sensitivity = v } }
@@ -126,39 +127,10 @@ class AppState: ObservableObject {
         p.queryMode(device: device) { [weak self] r in
             if case .success(let v) = r { self?.mainUpdate(id) { $0.mode = v } }
         }
-        p.queryAutoLock(device: device) { [weak self] r in
-            if case .success(let v) = r { self?.mainUpdate(id) { $0.autoLock = v } }
-        }
         p.queryMute(device: device) { [weak self] r in
             if case .success(let v) = r { self?.mainUpdate(id) { $0.rfMute = v } }
         }
-        p.queryRfPower(device: device) { [weak self] r in
-            if case .success(let v) = r { self?.mainUpdate(id) { $0.rfPower = v } }
-        }
-        p.queryWarningAfPeak(device: device) { [weak self] r in
-            if case .success(let v) = r { self?.mainUpdate(id) { $0.warningAfPeak = v } }
-        }
-        p.queryWarningRfMute(device: device) { [weak self] r in
-            if case .success(let v) = r { self?.mainUpdate(id) { $0.warningRfMute = v } }
-        }
-        p.queryRxAutoLock(device: device) { [weak self] r in
-            if case .success(let v) = r { self?.mainUpdate(id) { $0.rxAutoLock = v } }
-        }
-        p.queryRxBalance(device: device) { [weak self] r in
-            if case .success(let v) = r { self?.mainUpdate(id) { $0.rxBalance = v } }
-        }
-        p.queryRxMode(device: device) { [weak self] r in
-            if case .success(let v) = r { self?.mainUpdate(id) { $0.rxMode = v } }
-        }
-        p.queryRxLimiter(device: device) { [weak self] r in
-            if case .success(let v) = r { self?.mainUpdate(id) { $0.rxLimiter = v } }
-        }
-        p.queryRxHighBoost(device: device) { [weak self] r in
-            if case .success(let v) = r { self?.mainUpdate(id) { $0.rxHighBoost = v } }
-        }
-        p.queryRxSquelch(device: device) { [weak self] r in
-            if case .success(let v) = r { self?.mainUpdate(id) { $0.rxSquelch = v } }
-        }
+        p.queryEqualizer(device: device) { _ in }
     }
 
     // MARK: - Set individual parameters
@@ -204,61 +176,61 @@ class AppState: ObservableObject {
         sennheiserProtocol.setMode(device: device, mode: mode) { _ in }
     }
 
-    func setDeviceAutoLock(_ device: SennheiserDevice, locked: Bool) {
-        updateDevice(device.id) { $0.autoLock = locked }
-        sennheiserProtocol.setAutoLock(device: device, locked: locked) { _ in }
-    }
-
     func setDeviceMute(_ device: SennheiserDevice, muted: Bool) {
         updateDevice(device.id) { $0.rfMute = muted }
         sennheiserProtocol.setMute(device: device, muted: muted) { _ in }
     }
 
+    // MARK: - Binary protocol parameters (local-only until port 8133 protocol is implemented)
+
+    func setDeviceAutoLock(_ device: SennheiserDevice, locked: Bool) {
+        updateDevice(device.id) { $0.autoLock = locked }
+        statusMessage = "Auto Lock: requires binary protocol (not yet implemented)"
+    }
+
     func setDeviceRfPower(_ device: SennheiserDevice, mW: Int) {
         updateDevice(device.id) { $0.rfPower = mW }
-        sennheiserProtocol.setRfPower(device: device, mW: mW) { _ in }
+        statusMessage = "RF Power: requires binary protocol (not yet implemented)"
     }
 
     func setDeviceWarningAfPeak(_ device: SennheiserDevice, enabled: Bool) {
         updateDevice(device.id) { $0.warningAfPeak = enabled }
-        sennheiserProtocol.setWarningAfPeak(device: device, enabled: enabled) { _ in }
+        statusMessage = "Warning AF Peak: requires binary protocol (not yet implemented)"
     }
 
     func setDeviceWarningRfMute(_ device: SennheiserDevice, enabled: Bool) {
         updateDevice(device.id) { $0.warningRfMute = enabled }
-        sennheiserProtocol.setWarningRfMute(device: device, enabled: enabled) { _ in }
+        statusMessage = "Warning RF Mute: requires binary protocol (not yet implemented)"
     }
-
-    // MARK: - RX Sync Settings
 
     func setRxAutoLock(_ device: SennheiserDevice, locked: Bool) {
         updateDevice(device.id) { $0.rxAutoLock = locked }
-        sennheiserProtocol.setRxAutoLock(device: device, locked: locked) { _ in }
+        statusMessage = "RX Auto Lock: requires binary protocol (not yet implemented)"
     }
 
     func setRxBalance(_ device: SennheiserDevice, value: Int) {
         updateDevice(device.id) { $0.rxBalance = value }
-        sennheiserProtocol.setRxBalance(device: device, value: value) { _ in }
+        statusMessage = "RX Balance: requires binary protocol (not yet implemented)"
     }
 
     func setRxMode(_ device: SennheiserDevice, mode: SennheiserDevice.RxMode) {
         updateDevice(device.id) { $0.rxMode = mode }
-        sennheiserProtocol.setRxMode(device: device, mode: mode) { _ in }
+        statusMessage = "RX Mode: requires binary protocol (not yet implemented)"
     }
 
     func setRxLimiter(_ device: SennheiserDevice, value: Int) {
         updateDevice(device.id) { $0.rxLimiter = value }
-        sennheiserProtocol.setRxLimiter(device: device, value: value) { _ in }
+        statusMessage = "RX Limiter: requires binary protocol (not yet implemented)"
     }
 
     func setRxHighBoost(_ device: SennheiserDevice, enabled: Bool) {
         updateDevice(device.id) { $0.rxHighBoost = enabled }
-        sennheiserProtocol.setRxHighBoost(device: device, enabled: enabled) { _ in }
+        statusMessage = "RX High Boost: requires binary protocol (not yet implemented)"
     }
 
     func setRxSquelch(_ device: SennheiserDevice, value: Int) {
         updateDevice(device.id) { $0.rxSquelch = value }
-        sennheiserProtocol.setRxSquelch(device: device, value: value) { _ in }
+        statusMessage = "RX Squelch: requires binary protocol (not yet implemented)"
     }
 
     // MARK: - RX Sync Enable/Ignore flags

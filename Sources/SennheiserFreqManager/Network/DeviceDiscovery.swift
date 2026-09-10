@@ -5,7 +5,7 @@ import Combine
 class DeviceDiscovery: NSObject, ObservableObject {
     @Published var discoveredDevices: [SennheiserDevice] = []
 
-    private let sennheiserPort: UInt16 = 53212
+    private let sennheiserPort: UInt16 = 53213
     private var listener: NWListener?
     private var broadcastConnection: NWConnection?
     private let queue = DispatchQueue(label: "device.discovery", qos: .userInitiated)

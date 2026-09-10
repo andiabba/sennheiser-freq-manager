@@ -4,7 +4,7 @@ struct SennheiserDevice: Identifiable, Hashable {
     let id: String
     var name: String
     var host: String
-    var port: Int = 53212
+    var port: Int = 53213
     var isOnline: Bool = true
 
     // TX Settings
