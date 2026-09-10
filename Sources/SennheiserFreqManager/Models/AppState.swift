@@ -195,7 +195,13 @@ class AppState: ObservableObject {
         let conn = BinaryProtocol()
         let deviceId = device.id
         conn.onStateUpdate = { [weak self] state in
+            NSLog("[BIN] State update: name=%@ freq=%d mode=%d rfPower=%d autoLock=%d", state.name, state.frequencyKHz, state.txMode, state.rfPower, state.txAutoLock ? 1 : 0)
             self?.mainUpdate(deviceId) {
+                if !state.name.isEmpty { $0.name = state.name }
+                $0.frequencyKHz = state.frequencyKHz
+                $0.bank = state.bank
+                $0.channel = state.channel
+                $0.mode = state.txMode == 0 ? .stereo : .mono
                 $0.autoLock = state.txAutoLock
                 $0.rfPower = state.rfPower
                 $0.warningAfPeak = state.warnAfPeak

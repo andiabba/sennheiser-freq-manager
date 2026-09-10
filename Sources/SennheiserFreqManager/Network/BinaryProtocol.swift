@@ -16,6 +16,7 @@ class BinaryProtocol {
         let frequencyKHz: Int
         let bank: Int
         let channel: Int
+        let txMode: Int           // state[27]: 0=mono, 1=stereo
         let txAutoLock: Bool      // state[34]: 0=unlocked, 1=locked
         let rfPower: Int          // state[36]: 0=10mW, 1=30mW, 2=50mW
         let warnAfPeak: Bool      // state[37]: 0=off, 1=on
@@ -128,7 +129,11 @@ class BinaryProtocol {
 
     private func setupConnection() {
         localIP = getLocalIP(for: deviceIP)
-        guard !localIP.isEmpty else { return }
+        guard !localIP.isEmpty else {
+            NSLog("[BIN] Failed to get local IP for %@", deviceIP)
+            return
+        }
+        NSLog("[BIN] Connecting to %@ from %@", deviceIP, localIP)
 
         fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)
         guard fd >= 0 else { return }
@@ -237,7 +242,10 @@ class BinaryProtocol {
 
             let data = Data(buf[0..<n])
             if n >= 66 && data[0..<4] == Data([0xca, 0x80, 0x70, 0xcd]) {
+                NSLog("[BIN] State packet (%d bytes)", n)
                 parseState(data)
+            } else {
+                NSLog("[BIN] Other packet (%d bytes)", n)
             }
         }
     }
@@ -254,6 +262,7 @@ class BinaryProtocol {
             frequencyKHz: frequencyKHz,
             bank: Int(data[24]) + 1,
             channel: Int(data[25]) + 1,
+            txMode: Int(data[27]),
             txAutoLock: data[34] != 0,
             rfPower: Self.decodeRfPower(data[36]),
             warnAfPeak: data[37] != 0,
