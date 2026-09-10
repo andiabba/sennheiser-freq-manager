@@ -10,6 +10,7 @@ class AppState: ObservableObject {
 
     let deviceDiscovery = DeviceDiscovery()
     let sennheiserProtocol = SennheiserProtocol()
+    private var binaryConnections: [String: BinaryProtocol] = [:]
     private var cancellables = Set<AnyCancellable>()
 
     init() {
@@ -181,56 +182,80 @@ class AppState: ObservableObject {
         sennheiserProtocol.setMute(device: device, muted: muted) { _ in }
     }
 
-    // MARK: - Binary protocol parameters (local-only until port 8133 protocol is implemented)
+    // MARK: - Binary protocol parameters (port 8133)
+
+    private func getBinaryConnection(for device: SennheiserDevice) -> BinaryProtocol {
+        if let existing = binaryConnections[device.id] {
+            return existing
+        }
+        let conn = BinaryProtocol()
+        let deviceId = device.id
+        conn.onStateUpdate = { [weak self] state in
+            self?.mainUpdate(deviceId) {
+                $0.rfPower = state.rfPower
+                $0.autoLock = state.autoLock
+                $0.warningAfPeak = state.warnAfPeak
+                $0.warningRfMute = state.warnRfMute
+                $0.rxBalance = state.rxBalance
+                $0.rxMode = state.rxMode == 1 ? .stereo : .focus
+                $0.rxLimiter = state.rxLimiter
+                $0.rxHighBoost = state.rxHighBoost
+                $0.rxSquelch = state.rxSquelch
+            }
+        }
+        conn.connect(deviceIP: device.host)
+        binaryConnections[device.id] = conn
+        return conn
+    }
 
     func setDeviceAutoLock(_ device: SennheiserDevice, locked: Bool) {
         updateDevice(device.id) { $0.autoLock = locked }
-        statusMessage = "Auto Lock: requires binary protocol (not yet implemented)"
+        getBinaryConnection(for: device).setAutoLock(locked)
     }
 
     func setDeviceRfPower(_ device: SennheiserDevice, mW: Int) {
         updateDevice(device.id) { $0.rfPower = mW }
-        statusMessage = "RF Power: requires binary protocol (not yet implemented)"
+        getBinaryConnection(for: device).setRfPower(mW: mW)
     }
 
     func setDeviceWarningAfPeak(_ device: SennheiserDevice, enabled: Bool) {
         updateDevice(device.id) { $0.warningAfPeak = enabled }
-        statusMessage = "Warning AF Peak: requires binary protocol (not yet implemented)"
+        getBinaryConnection(for: device).setWarnAfPeak(enabled)
     }
 
     func setDeviceWarningRfMute(_ device: SennheiserDevice, enabled: Bool) {
         updateDevice(device.id) { $0.warningRfMute = enabled }
-        statusMessage = "Warning RF Mute: requires binary protocol (not yet implemented)"
+        getBinaryConnection(for: device).setWarnRfMute(enabled)
     }
 
     func setRxAutoLock(_ device: SennheiserDevice, locked: Bool) {
         updateDevice(device.id) { $0.rxAutoLock = locked }
-        statusMessage = "RX Auto Lock: requires binary protocol (not yet implemented)"
+        statusMessage = "RX Auto Lock: binary position unknown — local only"
     }
 
     func setRxBalance(_ device: SennheiserDevice, value: Int) {
         updateDevice(device.id) { $0.rxBalance = value }
-        statusMessage = "RX Balance: requires binary protocol (not yet implemented)"
+        getBinaryConnection(for: device).setRxBalance(value)
     }
 
     func setRxMode(_ device: SennheiserDevice, mode: SennheiserDevice.RxMode) {
         updateDevice(device.id) { $0.rxMode = mode }
-        statusMessage = "RX Mode: requires binary protocol (not yet implemented)"
+        getBinaryConnection(for: device).setRxMode(stereo: mode == .stereo)
     }
 
     func setRxLimiter(_ device: SennheiserDevice, value: Int) {
         updateDevice(device.id) { $0.rxLimiter = value }
-        statusMessage = "RX Limiter: requires binary protocol (not yet implemented)"
+        getBinaryConnection(for: device).setRxLimiter(dB: value)
     }
 
     func setRxHighBoost(_ device: SennheiserDevice, enabled: Bool) {
         updateDevice(device.id) { $0.rxHighBoost = enabled }
-        statusMessage = "RX High Boost: requires binary protocol (not yet implemented)"
+        getBinaryConnection(for: device).setRxHighBoost(enabled)
     }
 
     func setRxSquelch(_ device: SennheiserDevice, value: Int) {
         updateDevice(device.id) { $0.rxSquelch = value }
-        statusMessage = "RX Squelch: requires binary protocol (not yet implemented)"
+        getBinaryConnection(for: device).setRxSquelch(dB: value)
     }
 
     // MARK: - RX Sync Enable/Ignore flags
