@@ -26,6 +26,7 @@
 
 /* Begin PBXFileReference section */
 		042A53B5B7CA57CEF834127F /* RFScanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RFScanView.swift; sourceTree = "<group>"; };
+		1BC78199FE018F3D020312E8 /* SennheiserFreqManager.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SennheiserFreqManager.entitlements; sourceTree = "<group>"; };
 		4354857F1CE2B03EEC7C4B82 /* SennheiserDevice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SennheiserDevice.swift; sourceTree = "<group>"; };
 		473A38E752981F38E8DDD786 /* WWBParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WWBParser.swift; sourceTree = "<group>"; };
 		4750B438D7050FA77CA6C0E1 /* RFScanManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RFScanManager.swift; sourceTree = "<group>"; };
@@ -94,6 +95,7 @@
 			children = (
 				DA3F502A2549C6CFCECAF7CA /* App.swift */,
 				BDD33A31AF1DDBB41884FE07 /* Assets.xcassets */,
+				1BC78199FE018F3D020312E8 /* SennheiserFreqManager.entitlements */,
 				E3C584C42E9D0327A7BB660B /* Models */,
 				53BC989248495CFA2A127E6B /* Network */,
 				997C7FAF9982220E43A19241 /* Parser */,
@@ -273,6 +275,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Sources/SennheiserFreqManager/SennheiserFreqManager.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
@@ -363,6 +366,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Sources/SennheiserFreqManager/SennheiserFreqManager.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
