@@ -141,26 +141,56 @@ class DeviceDiscovery: NSObject, ObservableObject {
     private func parseResponse(_ response: String, from endpoint: NWEndpoint?) {
         let trimmed = response.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        var deviceName = "Sennheiser Device"
-        if trimmed.hasPrefix("Name ") {
-            deviceName = String(trimmed.dropFirst(5))
-        }
+        // Only accept valid Sennheiser Media Control Protocol responses
+        guard trimmed.hasPrefix("Name ") else { return }
+        let deviceName = String(trimmed.dropFirst(5))
+        guard !deviceName.isEmpty else { return }
 
         guard let host = extractHost(from: endpoint) else { return }
 
-        queue.async { [weak self] in
+        // Verify with a second command before adding
+        verifyDevice(host: host, name: deviceName)
+    }
+
+    private func verifyDevice(host: String, name: String) {
+        let endpoint = NWEndpoint.Host(host)
+        let port = NWEndpoint.Port(integerLiteral: sennheiserPort)
+        let connection = NWConnection(host: endpoint, port: port, using: .udp)
+        connection.start(queue: queue)
+
+        connection.stateUpdateHandler = { [weak self] state in
             guard let self = self else { return }
-            guard !self.discoveredHosts.contains(host) else { return }
-            self.discoveredHosts.insert(host)
+            if case .ready = state {
+                let command = "Frequency\r"
+                if let data = command.data(using: .ascii) {
+                    connection.send(content: data, completion: .contentProcessed { _ in })
+                }
 
-            let device = SennheiserDevice(
-                id: "senn-\(host)",
-                name: deviceName,
-                host: host
-            )
+                connection.receiveMessage { data, _, _, _ in
+                    defer { connection.cancel() }
+                    guard let data = data,
+                          let response = String(data: data, encoding: .ascii) else { return }
+                    let trimmed = response.trimmingCharacters(in: .whitespacesAndNewlines)
 
-            DispatchQueue.main.async {
-                self.discoveredDevices.append(device)
+                    // Valid Sennheiser device responds with "Frequency <kHz>"
+                    guard trimmed.hasPrefix("Frequency "),
+                          let _ = Int(trimmed.dropFirst(10)) else { return }
+
+                    self.queue.async {
+                        guard !self.discoveredHosts.contains(host) else { return }
+                        self.discoveredHosts.insert(host)
+
+                        let device = SennheiserDevice(
+                            id: "senn-\(host)",
+                            name: name,
+                            host: host
+                        )
+
+                        DispatchQueue.main.async {
+                            self.discoveredDevices.append(device)
+                        }
+                    }
+                }
             }
         }
     }
