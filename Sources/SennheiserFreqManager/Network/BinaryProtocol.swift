@@ -16,6 +16,7 @@ class BinaryProtocol {
         let frequencyKHz: Int
         let bank: Int
         let channel: Int
+        let txAutoLock: Bool      // state[34]: 0=unlocked, 1=locked
         let rfPower: Int          // state[36]: 0=10mW, 1=30mW, 2=50mW
         let warnAfPeak: Bool      // state[37]: 0=off, 1=on
         let warnRfMute: Bool      // state[38]: 0=off, 1=on
@@ -31,6 +32,7 @@ class BinaryProtocol {
     // MARK: - Parameter positions
 
     enum Parameter: Int {
+        case txAutoLock = 30   // state[34]
         case rfPower = 32      // state[36]
         case warnAfPeak = 33   // state[37]
         case warnRfMute = 34   // state[38]
@@ -252,6 +254,7 @@ class BinaryProtocol {
             frequencyKHz: frequencyKHz,
             bank: Int(data[24]) + 1,
             channel: Int(data[25]) + 1,
+            txAutoLock: data[34] != 0,
             rfPower: Self.decodeRfPower(data[36]),
             warnAfPeak: data[37] != 0,
             warnRfMute: data[38] != 0,
@@ -276,6 +279,10 @@ class BinaryProtocol {
 
     func setRfPower(mW: Int) {
         setParameter(.rfPower, value: Self.encodeRfPower(mW: mW))
+    }
+
+    func setTxAutoLock(_ locked: Bool) {
+        setParameter(.txAutoLock, value: locked ? 0x01 : 0x00)
     }
 
     func setWarnAfPeak(_ enabled: Bool) {
@@ -317,7 +324,7 @@ class BinaryProtocol {
     // MARK: - Low-level
 
     private func sendCommand(cmdPos: Int, value: UInt8) {
-        guard fd >= 0, cmdPos >= 32, cmdPos <= 40 else { return }
+        guard fd >= 0, cmdPos >= 30, cmdPos <= 40 else { return }
         let ipBytes = ipToBytes(localIP)
 
         var cmd = Data(count: 60)

@@ -44,6 +44,7 @@
 
 | Cmd Pos | State Pos | Parameter | Values | Verified |
 |---------|-----------|-----------|--------|----------|
+| 30 | 34 | **TX Auto Lock** | 0x00=unlocked, 0x01=locked | Yes (tx autolock.pcapng) |
 | 32 | 36 | **RF Power** | 0x00=10mW, 0x01=30mW, 0x02=50mW | Yes |
 | 33 | 37 | **Warn AF Peak** | 0x00=off, 0x01=on | Yes (warnings.pcapng) |
 | 34 | 38 | **Warn RF Mute** | 0x00=off, 0x01=on | Yes (warnings.pcapng) |
@@ -61,7 +62,7 @@ For RX parameters (cmd[35]-cmd[40] / state[39]-state[44]):
 - No separate sync flag bytes exist — the value itself determines sync state
 
 ### TX Auto Lock
-Position **unknown** — not in the cmd[32-40] range. May be elsewhere in the binary protocol or controlled via SSC.
+Position cmd[30] / state[34]. Outside the cmd[32-40] RX parameter range — sits at a lower offset with a gap at cmd[31]/state[35].
 
 ### Handshake Sequence
 1. Init packet (18 bytes): `4f 1f f1 ca` + IP + IP + `00 00 01 01 01 01`
@@ -80,6 +81,8 @@ Position **unknown** — not in the cmd[32-40] range. May be elsewhere in the bi
 - `/Users/andreaslorunser/Desktop/rx auto lock.pcapng` — RX Auto Lock toggle
 - `/Users/andreaslorunser/Desktop/ignorewsm.pcapng` — sync/ignore behavior
 
+### Capture Files (additional)
+- `/Users/andreaslorunser/Desktop/tx autolock.pcapng` — TX Auto Lock toggle
+
 ### TODO
-- Find TX Auto Lock binary position (may need dedicated Wireshark capture)
 - Verify RF Power 30mW value (currently assumed 0x01)

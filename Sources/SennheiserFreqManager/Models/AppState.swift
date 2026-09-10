@@ -192,6 +192,7 @@ class AppState: ObservableObject {
         let deviceId = device.id
         conn.onStateUpdate = { [weak self] state in
             self?.mainUpdate(deviceId) {
+                $0.autoLock = state.txAutoLock
                 $0.rfPower = state.rfPower
                 $0.warningAfPeak = state.warnAfPeak
                 $0.warningRfMute = state.warnRfMute
@@ -223,7 +224,7 @@ class AppState: ObservableObject {
 
     func setDeviceAutoLock(_ device: SennheiserDevice, locked: Bool) {
         updateDevice(device.id) { $0.autoLock = locked }
-        statusMessage = "TX Auto Lock: binary position unknown"
+        getBinaryConnection(for: device).setTxAutoLock(locked)
     }
 
     func setDeviceRfPower(_ device: SennheiserDevice, mW: Int) {
