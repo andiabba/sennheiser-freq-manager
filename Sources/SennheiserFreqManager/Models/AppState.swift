@@ -11,7 +11,6 @@ class AppState: ObservableObject {
     let deviceDiscovery = DeviceDiscovery()
     let sennheiserProtocol = SennheiserProtocol()
     private var binaryConnections: [String: BinaryProtocol] = [:]
-    private var pollTimer: DispatchSourceTimer?
     private var cancellables = Set<AnyCancellable>()
 
     init() {
@@ -195,7 +194,6 @@ class AppState: ObservableObject {
         let conn = BinaryProtocol()
         let deviceId = device.id
         conn.onStateUpdate = { [weak self] state in
-            NSLog("[BIN] State update: name=%@ freq=%d mode=%d rfPower=%d autoLock=%d", state.name, state.frequencyKHz, state.txMode, state.rfPower, state.txAutoLock ? 1 : 0)
             self?.mainUpdate(deviceId) {
                 if !state.name.isEmpty { $0.name = state.name }
                 $0.frequencyKHz = state.frequencyKHz

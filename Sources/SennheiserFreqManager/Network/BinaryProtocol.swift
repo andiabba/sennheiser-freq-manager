@@ -129,11 +129,7 @@ class BinaryProtocol {
 
     private func setupConnection() {
         localIP = getLocalIP(for: deviceIP)
-        guard !localIP.isEmpty else {
-            NSLog("[BIN] Failed to get local IP for %@", deviceIP)
-            return
-        }
-        NSLog("[BIN] Connecting to %@ from %@", deviceIP, localIP)
+        guard !localIP.isEmpty else { return }
 
         fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)
         guard fd >= 0 else { return }
@@ -242,10 +238,7 @@ class BinaryProtocol {
 
             let data = Data(buf[0..<n])
             if n >= 66 && data[0..<4] == Data([0xca, 0x80, 0x70, 0xcd]) {
-                NSLog("[BIN] State packet (%d bytes)", n)
                 parseState(data)
-            } else {
-                NSLog("[BIN] Other packet (%d bytes)", n)
             }
         }
     }
