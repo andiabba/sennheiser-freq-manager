@@ -476,16 +476,11 @@ struct DeviceDetailView: View {
                         .buttonStyle(.bordered)
                 }
             } else {
-                HStack {
-                    Text(value)
-                    Spacer()
-                    Button("Edit") {
+                Text(value)
+                    .onTapGesture(count: 2) {
                         editing.wrappedValue = value
                         isEditing.wrappedValue = true
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                }
             }
         }
     }
