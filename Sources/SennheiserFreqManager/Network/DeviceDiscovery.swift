@@ -84,60 +84,14 @@ class DeviceDiscovery: NSObject, ObservableObject {
             let host = String(cString: hostBuf)
 
             guard !discoveredHosts.contains(host) else { continue }
-
-            // Verify with Frequency command
-            if verifyDevice(fd: fd, host: host) {
-                discoveredHosts.insert(host)
-                let device = SennheiserDevice(id: "senn-\(host)", name: deviceName, host: host)
-                DispatchQueue.main.async { [weak self] in
-                    self?.discoveredDevices.append(device)
-                }
+            discoveredHosts.insert(host)
+            let device = SennheiserDevice(id: "senn-\(host)", name: deviceName, host: host)
+            DispatchQueue.main.async { [weak self] in
+                self?.discoveredDevices.append(device)
             }
         }
 
         isRunning = false
-    }
-
-    private func verifyDevice(fd: Int32, host: String) -> Bool {
-        let command = "Frequency\r".data(using: .ascii)!
-        var addr = sockaddr_in()
-        addr.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
-        addr.sin_family = sa_family_t(AF_INET)
-        addr.sin_port = sennheiserPort.bigEndian
-        inet_pton(AF_INET, host, &addr.sin_addr)
-
-        command.withUnsafeBytes { buf in
-            withUnsafePointer(to: &addr) { addrPtr in
-                addrPtr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa in
-                    sendto(fd, buf.baseAddress, buf.count, 0, sa, socklen_t(MemoryLayout<sockaddr_in>.size))
-                }
-            }
-        }
-
-        var recvBuf = [UInt8](repeating: 0, count: 1024)
-        var srcAddr = sockaddr_in()
-        var srcLen = socklen_t(MemoryLayout<sockaddr_in>.size)
-
-        // Wait up to 500ms for response
-        var tv = timeval(tv_sec: 0, tv_usec: 500_000)
-        setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, socklen_t(MemoryLayout<timeval>.size))
-
-        let n = withUnsafeMutablePointer(to: &srcAddr) { addrPtr in
-            addrPtr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa in
-                recvfrom(fd, &recvBuf, recvBuf.count, 0, sa, &srcLen)
-            }
-        }
-
-        // Restore short timeout
-        tv = timeval(tv_sec: 0, tv_usec: 100_000)
-        setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, socklen_t(MemoryLayout<timeval>.size))
-
-        guard n > 0 else { return false }
-        let response = String(bytes: recvBuf[0..<n], encoding: .ascii)?
-            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-
-        let parts = response.split(separator: " ")
-        return parts.count >= 2 && parts[0] == "Frequency" && Int(parts[1]) != nil
     }
 
     private struct SubnetInfo {
