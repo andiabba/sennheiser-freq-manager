@@ -148,15 +148,17 @@ class DeviceDiscovery: NSObject, ObservableObject {
         var macAddress = ""
         var ip = ""
 
-        let cleaned = str.replacingOccurrences(of: "\0", with: "")
-        let parts = cleaned.split(separator: " ", omittingEmptySubsequences: true)
-        for part in parts {
-            let kv = part.split(separator: "=", maxSplits: 1)
-            guard kv.count == 2 else { continue }
-            switch String(kv[0]) {
-            case "Model": model = String(kv[1])
-            case "ID": macAddress = String(kv[1])
-            case "IPA": ip = String(kv[1])
+        // Extract key=value pairs using regex-like search since response has
+        // non-printable prefixes (e.g. "%Model=SR-IEMG4")
+        let cleaned = str.replacingOccurrences(of: "\0", with: " ")
+        for keyword in ["Model", "ID", "IPA"] {
+            guard let range = cleaned.range(of: "\(keyword)=") else { continue }
+            let after = cleaned[range.upperBound...]
+            let value = String(after.prefix(while: { $0 != " " && $0 != "\0" && $0 != "\r" && $0 != "\n" }))
+            switch keyword {
+            case "Model": model = value
+            case "ID": macAddress = value
+            case "IPA": ip = value
             default: break
             }
         }
