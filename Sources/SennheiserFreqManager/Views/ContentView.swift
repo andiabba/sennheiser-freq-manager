@@ -77,6 +77,7 @@ struct ContentView: View {
                         DeviceRow(device: device)
                             .tag(device.id)
                     }
+                    .onMove { appState.devices.move(fromOffsets: $0, toOffset: $1) }
                 }
                 .listStyle(.sidebar)
             }
