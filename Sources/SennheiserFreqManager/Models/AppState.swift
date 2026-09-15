@@ -40,6 +40,10 @@ class AppState: ObservableObject {
     }
 
     func startDiscovery() {
+        // Close existing binary connections so discovery can bind to port 8133
+        for conn in binaryConnections.values { conn.disconnect() }
+        binaryConnections.removeAll()
+
         isScanning = true
         statusMessage = "Scanning for devices…"
         deviceDiscovery.startBrowsing()
