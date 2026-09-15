@@ -122,7 +122,7 @@ class AppState: ObservableObject {
                 self?.mainUpdate(id) {
                     $0.frequencyKHz = info.frequencyKHz
                     $0.bank = info.bank
-                    $0.channel = info.channel
+                    $0.channel = info.channel > 0 ? info.channel : nil
                 }
             }
         }
@@ -202,7 +202,8 @@ class AppState: ObservableObject {
                 if !state.name.isEmpty { $0.name = state.name }
                 $0.frequencyKHz = state.frequencyKHz
                 $0.bank = state.bank
-                $0.channel = state.channel
+                $0.channel = state.channel > 0 ? state.channel : nil
+                $0.sensitivity = state.sensitivity
                 $0.mode = state.txMode == 0 ? .stereo : .mono
                 $0.autoLock = state.txAutoLock
                 $0.rfPower = state.rfPower

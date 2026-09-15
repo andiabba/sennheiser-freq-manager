@@ -16,7 +16,8 @@ class BinaryProtocol {
         let frequencyKHz: Int
         let bank: Int
         let channel: Int
-        let txMode: Int           // state[27]: 0=mono, 1=stereo
+        let sensitivity: Int      // state[26]: index, dB = -42 + index*3
+        let txMode: Int           // state[27]: 0=stereo, 1=mono (reversed from SSC)
         let txAutoLock: Bool      // state[34]: 0=unlocked, 1=locked
         let rfPower: Int          // state[36]: 0=10mW, 1=30mW, 2=50mW
         let warnAfPeak: Bool      // state[37]: 0=off, 1=on
@@ -48,6 +49,14 @@ class BinaryProtocol {
     }
 
     // MARK: - Value encoding
+
+    static func decodeSensitivity(_ val: UInt8) -> Int {
+        return Int(val) * 3 - 42
+    }
+
+    static func encodeSensitivity(dB: Int) -> UInt8 {
+        return UInt8(clamping: (dB + 42) / 3)
+    }
 
     static func encodeRfPower(mW: Int) -> UInt8 {
         switch mW {
@@ -254,7 +263,8 @@ class BinaryProtocol {
             name: name,
             frequencyKHz: frequencyKHz,
             bank: Int(data[24]) + 1,
-            channel: Int(data[25]) + 1,
+            channel: Int(data[25]),
+            sensitivity: Self.decodeSensitivity(data[26]),
             txMode: Int(data[27]),
             txAutoLock: data[34] != 0,
             rfPower: Self.decodeRfPower(data[36]),
