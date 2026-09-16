@@ -109,33 +109,53 @@ struct ContentView: View {
             .buttonStyle(.plain)
             .padding(12)
 
-            if let showFile = appState.showFile {
-                Button {
-                    showRFScan = false
-                    selectedDeviceID = nil
-                } label: {
-                    HStack {
-                        Image(systemName: "doc.fill")
-                            .foregroundColor(.accentColor)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(showFile.fileName)
-                                .font(.caption)
-                                .lineLimit(1)
-                            Text("\(showFile.entries.count) frequencies")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        if selectedDeviceID == nil && !showRFScan {
-                            Image(systemName: "chevron.right")
-                                .font(.caption2)
-                                .foregroundStyle(.tertiary)
+            HStack {
+                if let showFile = appState.showFile {
+                    Button {
+                        showRFScan = false
+                        selectedDeviceID = nil
+                    } label: {
+                        HStack {
+                            Image(systemName: "doc.fill")
+                                .foregroundColor(.accentColor)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(showFile.fileName)
+                                    .font(.caption)
+                                    .lineLimit(1)
+                                Text("\(showFile.entries.count) frequencies")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
+                    .buttonStyle(.plain)
+                    Spacer()
+                    Button {
+                        appState.showFile = nil
+                        appState.assignments.removeAll()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.caption2)
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Close show file")
+                } else {
+                    Button {
+                        openFilePanel()
+                    } label: {
+                        HStack {
+                            Image(systemName: "doc.badge.plus")
+                                .foregroundColor(.accentColor)
+                            Text("Open WWB File…")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    Spacer()
                 }
-                .buttonStyle(.plain)
-                .padding(12)
             }
+            .padding(12)
 
             if !appState.statusMessage.isEmpty {
                 Text(appState.statusMessage)

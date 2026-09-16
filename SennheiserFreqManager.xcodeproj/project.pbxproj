@@ -19,6 +19,7 @@
 		9022FBC730EAC33FB537E0E4 /* RFScanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 042A53B5B7CA57CEF834127F /* RFScanView.swift */; };
 		ADC790110C2BD0553335A3F1 /* SennheiserProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7C04D6846020E3CC0097254 /* SennheiserProtocol.swift */; };
 		B79F251342EB9C237AEDF691 /* DeviceDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E115B656281C4C88F11229C7 /* DeviceDetailView.swift */; };
+		D568854183B3599616738402 /* FrequencyTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = D322576333780FA1393C2130 /* FrequencyTable.swift */; };
 		D9149505840AAA21AEB5681F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BDD33A31AF1DDBB41884FE07 /* Assets.xcassets */; };
 		DA6393059779201198678331 /* AddDeviceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBD6DE9F4EBAE0D94BF7E1CA /* AddDeviceView.swift */; };
 		DE16CB3D51A8C80482EB2205 /* BinaryProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF2FD37DEEBBE73DB506AE1C /* BinaryProtocol.swift */; };
@@ -38,6 +39,7 @@
 		B7C04D6846020E3CC0097254 /* SennheiserProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SennheiserProtocol.swift; sourceTree = "<group>"; };
 		BDD33A31AF1DDBB41884FE07 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		C2272AA66BC66DAFD22F838E /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		D322576333780FA1393C2130 /* FrequencyTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrequencyTable.swift; sourceTree = "<group>"; };
 		DA3F502A2549C6CFCECAF7CA /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
 		DBD6DE9F4EBAE0D94BF7E1CA /* AddDeviceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddDeviceView.swift; sourceTree = "<group>"; };
 		E115B656281C4C88F11229C7 /* DeviceDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceDetailView.swift; sourceTree = "<group>"; };
@@ -122,6 +124,7 @@
 			children = (
 				C2272AA66BC66DAFD22F838E /* AppState.swift */,
 				FA25B5BA753B0680B0E0C13D /* FrequencyBand.swift */,
+				D322576333780FA1393C2130 /* FrequencyTable.swift */,
 				4354857F1CE2B03EEC7C4B82 /* SennheiserDevice.swift */,
 				4C8CBD70755A525169143AA0 /* WWBFrequencyPlan.swift */,
 			);
@@ -207,6 +210,7 @@
 				F3E1B4E19E32F9ADFA688207 /* DeviceDiscovery.swift in Sources */,
 				0D1E4B7A087F68B332B93D4D /* FrequencyAssignmentView.swift in Sources */,
 				031E846DEDE1EA716C596E54 /* FrequencyBand.swift in Sources */,
+				D568854183B3599616738402 /* FrequencyTable.swift in Sources */,
 				0C2A60C3614045D1E3736735 /* RFScanManager.swift in Sources */,
 				9022FBC730EAC33FB537E0E4 /* RFScanView.swift in Sources */,
 				18EFEF556E07D507322F21EC /* SennheiserDevice.swift in Sources */,

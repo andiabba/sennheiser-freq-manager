@@ -1,15 +1,21 @@
 import Foundation
 
 class BinaryProtocol {
+    static let shared = BinaryProtocol()
+
     private let port: UInt16 = 8133
     private let queue = DispatchQueue(label: "binary.protocol", qos: .userInitiated)
     private var fd: Int32 = -1
-    private var deviceIP: String = ""
     private var localIP: String = ""
     private var keepaliveTimer: DispatchSourceTimer?
     private var receiveTimer: DispatchSourceTimer?
-    private var isConnected = false
-    var onStateUpdate: ((DeviceState) -> Void)?
+
+    private var devices: [String: DeviceEntry] = [:]
+
+    private struct DeviceEntry {
+        let ip: String
+        let onStateUpdate: (DeviceState) -> Void
+    }
 
     struct DeviceState {
         let name: String
@@ -77,7 +83,6 @@ class BinaryProtocol {
     }
 
     static func encodeBalance(_ balance: Int) -> UInt8 {
-        // -15..+15 mapped to 1..31, center=16
         return UInt8(clamping: balance + 16)
     }
 
@@ -86,7 +91,6 @@ class BinaryProtocol {
     }
 
     static func encodeSquelch(dB: Int) -> UInt8 {
-        // 5,7,9,...,25 → index 1..11
         return UInt8(clamping: (dB - 3) / 2)
     }
 
@@ -95,7 +99,6 @@ class BinaryProtocol {
     }
 
     static func encodeLimiter(dB: Int) -> UInt8 {
-        // 0=off, -6, -12, -18
         switch dB {
         case 0: return 0x01
         case -6: return 0x02
@@ -115,33 +118,15 @@ class BinaryProtocol {
         }
     }
 
-    // MARK: - Connection
+    // MARK: - Shared socket management
 
-    func connect(deviceIP: String) {
-        self.deviceIP = deviceIP
-        queue.async { [weak self] in
-            self?.setupConnection()
-        }
-    }
+    private init() {}
 
-    func disconnect() {
-        keepaliveTimer?.cancel()
-        keepaliveTimer = nil
-        receiveTimer?.cancel()
-        receiveTimer = nil
-        if fd >= 0 {
-            Darwin.close(fd)
-            fd = -1
-        }
-        isConnected = false
-    }
-
-    private func setupConnection() {
-        localIP = getLocalIP(for: deviceIP)
-        guard !localIP.isEmpty else { return }
+    private func ensureSocket() -> Bool {
+        if fd >= 0 { return true }
 
         fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)
-        guard fd >= 0 else { return }
+        guard fd >= 0 else { return false }
 
         var reuseAddr: Int32 = 1
         setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &reuseAddr, socklen_t(MemoryLayout<Int32>.size))
@@ -162,59 +147,112 @@ class BinaryProtocol {
             }
         }
         guard bindResult == 0 else {
-            Darwin.close(fd); fd = -1; return
+            Darwin.close(fd); fd = -1; return false
         }
 
-        sendHandshake()
-        startKeepalive()
         startReceiving()
-        isConnected = true
+        startKeepalive()
+        return true
+    }
+
+    func shutdown() {
+        queue.sync {
+            keepaliveTimer?.cancel()
+            keepaliveTimer = nil
+            receiveTimer?.cancel()
+            receiveTimer = nil
+            if fd >= 0 {
+                Darwin.close(fd)
+                fd = -1
+            }
+            devices.removeAll()
+            localIP = ""
+        }
+    }
+
+    // MARK: - Device registration
+
+    func addDevice(ip: String, onStateUpdate: @escaping (DeviceState) -> Void) {
+        queue.async { [weak self] in
+            guard let self = self else { return }
+
+            if self.localIP.isEmpty {
+                self.localIP = self.getLocalIP(for: ip)
+            }
+            guard !self.localIP.isEmpty else { return }
+            guard self.ensureSocket() else { return }
+
+            self.devices[ip] = DeviceEntry(ip: ip, onStateUpdate: onStateUpdate)
+            self.sendHandshake(to: ip)
+        }
+    }
+
+    func removeDevice(ip: String) {
+        queue.async { [weak self] in
+            self?.devices.removeValue(forKey: ip)
+        }
+    }
+
+    func removeAllDevices() {
+        queue.async { [weak self] in
+            self?.devices.removeAll()
+        }
     }
 
     // MARK: - Handshake (matching WSM's exact sequence)
 
-    private func sendHandshake() {
+    private func sendHandshake(to deviceIP: String) {
         let ipBytes = ipToBytes(localIP)
 
-        // Init packet (18 bytes)
         var init_pkt = Data([0x4f, 0x1f, 0xf1, 0xca])
         init_pkt.append(contentsOf: ipBytes)
         init_pkt.append(contentsOf: ipBytes)
         init_pkt.append(contentsOf: [0x00, 0x00, 0x01, 0x01, 0x01, 0x01])
 
-        // State request packet (11 bytes)
         var pkt11 = Data([0xa4, 0xfd, 0xf7, 0xca])
         pkt11.append(contentsOf: ipBytes)
         pkt11.append(contentsOf: [0x01, 0x01, 0x01])
 
-        // Registration packet (14 bytes)
         var pkt14 = Data([0x4c, 0x37, 0xca, 0xce])
         pkt14.append(contentsOf: ipBytes.reversed())
         pkt14.append(contentsOf: [0xff, 0xff, 0xff, 0xff, 0x01, 0x01])
 
-        sendUDP(init_pkt)
-        sendUDP(pkt11)
-        sendUDP(init_pkt)
-        sendUDP(pkt14)
+        sendUDP(init_pkt, to: deviceIP)
+        sendUDP(pkt11, to: deviceIP)
+        sendUDP(init_pkt, to: deviceIP)
+        sendUDP(pkt14, to: deviceIP)
 
-        usleep(300_000)
-        sendUDP(pkt11)
-        sendUDP(pkt11)
+        queue.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+            self?.sendUDP(pkt11, to: deviceIP)
+        }
     }
 
     // MARK: - Keepalive
 
     private func startKeepalive() {
+        guard keepaliveTimer == nil else { return }
         let timer = DispatchSource.makeTimerSource(queue: queue)
         timer.schedule(deadline: .now() + 5, repeating: 5.0)
+        var tick = 0
         timer.setEventHandler { [weak self] in
             guard let self = self, self.fd >= 0 else { return }
             let ipBytes = self.ipToBytes(self.localIP)
-            var pkt = Data([0x4f, 0x1f, 0xf1, 0xca])
-            pkt.append(contentsOf: ipBytes)
-            pkt.append(contentsOf: ipBytes)
-            pkt.append(contentsOf: [0x01, 0x00, 0x01, 0x01, 0x01, 0x01])
-            self.sendUDP(pkt)
+
+            let pkt11 = Data([0xa4, 0xfd, 0xf7, 0xca]) + Data(ipBytes) + Data([0x01, 0x01, 0x01])
+            for ip in self.devices.keys {
+                self.sendUDP(pkt11, to: ip)
+            }
+
+            tick += 1
+            if tick % 2 == 0 {
+                var pkt = Data([0x4f, 0x1f, 0xf1, 0xca])
+                pkt.append(contentsOf: ipBytes)
+                pkt.append(contentsOf: ipBytes)
+                pkt.append(contentsOf: [0x01, 0x00, 0x01, 0x01, 0x01, 0x01])
+                for ip in self.devices.keys {
+                    self.sendUDP(pkt, to: ip)
+                }
+            }
         }
         timer.resume()
         keepaliveTimer = timer
@@ -223,6 +261,7 @@ class BinaryProtocol {
     // MARK: - Receiving
 
     private func startReceiving() {
+        guard receiveTimer == nil else { return }
         let timer = DispatchSource.makeTimerSource(queue: queue)
         timer.schedule(deadline: .now(), repeating: 0.1)
         timer.setEventHandler { [weak self] in
@@ -238,6 +277,7 @@ class BinaryProtocol {
         var srcLen = socklen_t(MemoryLayout<sockaddr_in>.size)
 
         while true {
+            srcLen = socklen_t(MemoryLayout<sockaddr_in>.size)
             let n = withUnsafeMutablePointer(to: &srcAddr) { addrPtr in
                 addrPtr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa in
                     recvfrom(fd, &buf, buf.count, MSG_DONTWAIT, sa, &srcLen)
@@ -247,19 +287,25 @@ class BinaryProtocol {
 
             let data = Data(buf[0..<n])
             if n >= 66 && data[0..<4] == Data([0xca, 0x80, 0x70, 0xcd]) {
-                parseState(data)
+                var ipBuf = [CChar](repeating: 0, count: Int(INET_ADDRSTRLEN))
+                inet_ntop(AF_INET, &srcAddr.sin_addr, &ipBuf, socklen_t(INET_ADDRSTRLEN))
+                let srcIP = String(cString: ipBuf)
+
+                if let entry = devices[srcIP] {
+                    let state = parseState(data)
+                    entry.onStateUpdate(state)
+                }
             }
         }
     }
 
-    private func parseState(_ data: Data) {
-        guard data.count >= 66 else { return }
+    private func parseState(_ data: Data) -> DeviceState {
         let name = String(bytes: data[12..<20], encoding: .ascii)?
             .trimmingCharacters(in: .whitespaces) ?? ""
         let freqBytes = data[20..<24]
         let frequencyKHz = Int(freqBytes[20]) | (Int(freqBytes[21]) << 8) | (Int(freqBytes[22]) << 16) | (Int(freqBytes[23]) << 24)
 
-        let state = DeviceState(
+        return DeviceState(
             name: name,
             frequencyKHz: frequencyKHz,
             bank: Int(data[24]) + 1,
@@ -278,64 +324,74 @@ class BinaryProtocol {
             rxSquelch: Self.decodeSquelch(data[44]),
             raw: data
         )
-        onStateUpdate?(state)
     }
 
-    // MARK: - Send commands
+    // MARK: - Send commands (targeted to specific device)
 
-    func setParameter(_ param: Parameter, value: UInt8) {
+    func setParameter(deviceIP: String, _ param: Parameter, value: UInt8) {
         queue.async { [weak self] in
-            self?.sendCommand(cmdPos: param.rawValue, value: value)
+            self?.sendCommand(deviceIP: deviceIP, cmdPos: param.rawValue, value: value)
         }
     }
 
-    func setRfPower(mW: Int) {
-        setParameter(.rfPower, value: Self.encodeRfPower(mW: mW))
+    func setRfPower(deviceIP: String, mW: Int) {
+        setParameter(deviceIP: deviceIP, .rfPower, value: Self.encodeRfPower(mW: mW))
     }
 
-    func setTxAutoLock(_ locked: Bool) {
-        setParameter(.txAutoLock, value: locked ? 0x01 : 0x00)
+    func setTxAutoLock(deviceIP: String, _ locked: Bool) {
+        setParameter(deviceIP: deviceIP, .txAutoLock, value: locked ? 0x01 : 0x00)
     }
 
-    func setWarnAfPeak(_ enabled: Bool) {
-        setParameter(.warnAfPeak, value: enabled ? 0x01 : 0x00)
+    func setWarnAfPeak(deviceIP: String, _ enabled: Bool) {
+        setParameter(deviceIP: deviceIP, .warnAfPeak, value: enabled ? 0x01 : 0x00)
     }
 
-    func setWarnRfMute(_ enabled: Bool) {
-        setParameter(.warnRfMute, value: enabled ? 0x01 : 0x00)
+    func setWarnRfMute(deviceIP: String, _ enabled: Bool) {
+        setParameter(deviceIP: deviceIP, .warnRfMute, value: enabled ? 0x01 : 0x00)
     }
 
-    func setRxAutoLock(locked: Bool) {
-        setParameter(.rxAutoLock, value: locked ? 0x02 : 0x01)
+    func setRxAutoLock(deviceIP: String, locked: Bool) {
+        setParameter(deviceIP: deviceIP, .rxAutoLock, value: locked ? 0x02 : 0x01)
     }
 
-    func setRxBalance(_ balance: Int) {
-        setParameter(.rxBalance, value: Self.encodeBalance(balance))
+    func setRxBalance(deviceIP: String, _ balance: Int) {
+        setParameter(deviceIP: deviceIP, .rxBalance, value: Self.encodeBalance(balance))
     }
 
-    func setRxMode(stereo: Bool) {
-        setParameter(.rxMode, value: stereo ? 0x01 : 0x02)
+    func setRxMode(deviceIP: String, stereo: Bool) {
+        setParameter(deviceIP: deviceIP, .rxMode, value: stereo ? 0x01 : 0x02)
     }
 
-    func setRxLimiter(dB: Int) {
-        setParameter(.rxLimiter, value: Self.encodeLimiter(dB: dB))
+    func setRxLimiter(deviceIP: String, dB: Int) {
+        setParameter(deviceIP: deviceIP, .rxLimiter, value: Self.encodeLimiter(dB: dB))
     }
 
-    func setRxHighBoost(_ enabled: Bool) {
-        setParameter(.rxHighBoost, value: enabled ? 0x02 : 0x01)
+    func setRxHighBoost(deviceIP: String, _ enabled: Bool) {
+        setParameter(deviceIP: deviceIP, .rxHighBoost, value: enabled ? 0x02 : 0x01)
     }
 
-    func setRxSquelch(dB: Int) {
-        setParameter(.rxSquelch, value: Self.encodeSquelch(dB: dB))
+    func setRxSquelch(deviceIP: String, dB: Int) {
+        setParameter(deviceIP: deviceIP, .rxSquelch, value: Self.encodeSquelch(dB: dB))
     }
 
-    func ignoreParameter(_ param: Parameter) {
-        setParameter(param, value: 0x00)
+    func ignoreParameter(deviceIP: String, _ param: Parameter) {
+        setParameter(deviceIP: deviceIP, param, value: 0x00)
+    }
+
+    func requestState(deviceIP: String) {
+        queue.async { [weak self] in
+            guard let self = self, self.fd >= 0 else { return }
+            let ipBytes = self.ipToBytes(self.localIP)
+            var pkt11 = Data([0xa4, 0xfd, 0xf7, 0xca])
+            pkt11.append(contentsOf: ipBytes)
+            pkt11.append(contentsOf: [0x01, 0x01, 0x01])
+            self.sendUDP(pkt11, to: deviceIP)
+        }
     }
 
     // MARK: - Low-level
 
-    private func sendCommand(cmdPos: Int, value: UInt8) {
+    private func sendCommand(deviceIP: String, cmdPos: Int, value: UInt8) {
         guard fd >= 0, cmdPos >= 30, cmdPos <= 40 else { return }
         let ipBytes = ipToBytes(localIP)
 
@@ -346,17 +402,16 @@ class BinaryProtocol {
         cmd[cmdPos] = value
         cmd[41] = 0x01
         cmd[cmdPos + 19] = 0x01
-        sendUDP(cmd)
+        sendUDP(cmd, to: deviceIP)
 
-        // Request fresh state
-        var pkt11 = Data([0xa4, 0xfd, 0xf7, 0xca])
-        pkt11.append(contentsOf: ipBytes)
-        pkt11.append(contentsOf: [0x01, 0x01, 0x01])
-        usleep(100_000)
-        sendUDP(pkt11)
+        let pkt11 = Data([0xa4, 0xfd, 0xf7, 0xca]) + Data(ipBytes) + Data([0x01, 0x01, 0x01])
+        queue.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            self?.sendUDP(pkt11, to: deviceIP)
+        }
     }
 
-    private func sendUDP(_ data: Data) {
+    private func sendUDP(_ data: Data, to deviceIP: String) {
+        guard fd >= 0 else { return }
         var addr = sockaddr_in()
         addr.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
         addr.sin_family = sa_family_t(AF_INET)
@@ -369,17 +424,6 @@ class BinaryProtocol {
                     sendto(fd, buf.baseAddress, buf.count, 0, sa, socklen_t(MemoryLayout<sockaddr_in>.size))
                 }
             }
-        }
-    }
-
-    func requestState() {
-        queue.async { [weak self] in
-            guard let self = self, self.fd >= 0 else { return }
-            let ipBytes = self.ipToBytes(self.localIP)
-            var pkt11 = Data([0xa4, 0xfd, 0xf7, 0xca])
-            pkt11.append(contentsOf: ipBytes)
-            pkt11.append(contentsOf: [0x01, 0x01, 0x01])
-            self.sendUDP(pkt11)
         }
     }
 

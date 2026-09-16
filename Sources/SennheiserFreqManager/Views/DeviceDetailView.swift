@@ -8,9 +8,17 @@ struct DeviceDetailView: View {
     @State private var editingFrequency = ""
     @State private var isEditingName = false
     @State private var isEditingFrequency = false
+    @State private var selectedBank: Int = 1
+    @State private var selectedChannel: Int = 1
+    @State private var bankChannelInitialized = false
 
     private var device: SennheiserDevice? {
         appState.devices.first { $0.id == deviceID }
+    }
+
+    private var frequencyTable: FrequencyTable {
+        guard let freqKHz = device?.frequencyKHz else { return FrequencyTable.rangeA1 }
+        return FrequencyTable.detectRange(frequencyKHz: freqKHz)
     }
 
     var body: some View {
@@ -29,6 +37,17 @@ struct DeviceDetailView: View {
             .background(Color(nsColor: .windowBackgroundColor))
             .onAppear {
                 appState.queryDeviceState(device)
+                if !bankChannelInitialized {
+                    selectedBank = device.bank ?? 1
+                    selectedChannel = device.channel ?? 1
+                    bankChannelInitialized = true
+                }
+            }
+            .onChange(of: deviceID) {
+                if let d = appState.devices.first(where: { $0.id == deviceID }) {
+                    selectedBank = d.bank ?? 1
+                    selectedChannel = d.channel ?? 1
+                }
             }
         } else {
             Text("Device not found")
@@ -101,48 +120,55 @@ struct DeviceDetailView: View {
 
             Divider()
 
-            // Bank
-            settingRow("Bank") {
-                HStack {
-                    Text(device.bankDisplayString)
-                        .monospacedDigit()
+            // Bank & Channel
+            settingRow("Bank / Ch") {
+                HStack(spacing: 8) {
+                    Text("Current: \(device.bankDisplayString) / \(device.channel.map { "\($0)" } ?? "—")")
+                        .foregroundStyle(.secondary)
+                        .font(.caption)
                     Spacer()
-                    Picker("", selection: Binding(
-                        get: { device.bank ?? 1 },
-                        set: { appState.setDeviceBank(device, bank: $0) }
-                    )) {
-                        ForEach(1...20, id: \.self) { b in
-                            Text("\(b)").tag(b)
-                        }
-                        ForEach(1...6, id: \.self) { u in
-                            Text("U\(u)").tag(20 + u)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .frame(maxWidth: 100)
-                    .labelsHidden()
                 }
             }
 
-            Divider()
-
-            // Channel
-            settingRow("Channel") {
-                HStack {
-                    Text(device.channel != nil ? "\(device.channel!)" : "—")
-                        .monospacedDigit()
-                    Spacer()
-                    Picker("", selection: Binding(
-                        get: { device.channel ?? 1 },
-                        set: { appState.setDeviceChannel(device, channel: $0) }
-                    )) {
-                        ForEach(SennheiserDevice.channelRange, id: \.self) { ch in
-                            Text("\(ch)").tag(ch)
+            settingRow("") {
+                HStack(spacing: 8) {
+                    Picker("Bank", selection: $selectedBank) {
+                        ForEach(1...frequencyTable.bankCount, id: \.self) { b in
+                            Text("Bank \(b)").tag(b)
                         }
                     }
                     .pickerStyle(.menu)
-                    .frame(maxWidth: 80)
+                    .frame(maxWidth: 120)
                     .labelsHidden()
+
+                    Picker("Channel", selection: $selectedChannel) {
+                        ForEach(frequencyTable.availableChannels(bank: selectedBank), id: \.self) { ch in
+                            Text("Ch \(ch)").tag(ch)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(maxWidth: 90)
+                    .labelsHidden()
+
+                    if let freqKHz = frequencyTable.frequency(bank: selectedBank, channel: selectedChannel) {
+                        Text(String(format: "%.3f", Double(freqKHz) / 1000.0))
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                            .font(.caption)
+                    }
+
+                    Text(frequencyTable.name)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+
+                    Button("Set") {
+                        if let freqKHz = frequencyTable.frequency(bank: selectedBank, channel: selectedChannel) {
+                            appState.setDeviceBankChannel(device, bank: selectedBank, channel: selectedChannel, frequencyKHz: freqKHz)
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .disabled(frequencyTable.frequency(bank: selectedBank, channel: selectedChannel) == nil)
                 }
             }
 

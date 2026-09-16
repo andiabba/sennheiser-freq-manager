@@ -10,7 +10,8 @@ class AppState: ObservableObject {
 
     let deviceDiscovery = DeviceDiscovery()
     let sennheiserProtocol = SennheiserProtocol()
-    private var binaryConnections: [String: BinaryProtocol] = [:]
+    private let binaryProtocol = BinaryProtocol.shared
+    private var registeredDeviceIPs: Set<String> = []
     private var cancellables = Set<AnyCancellable>()
 
     init() {
@@ -20,7 +21,7 @@ class AppState: ObservableObject {
                 guard let self = self else { return }
                 let existingIDs = Set(self.devices.map { $0.id })
                 for device in newDevices where !existingIDs.contains(device.id) {
-                    self.queryDeviceState(device)
+                    self.querySSCState(device)
                 }
                 self.mergeDiscoveredDevices(newDevices)
             }
@@ -40,21 +41,23 @@ class AppState: ObservableObject {
     }
 
     func startDiscovery() {
-        // Close existing binary connections so discovery can bind to port 8133
-        for conn in binaryConnections.values { conn.disconnect() }
-        binaryConnections.removeAll()
+        binaryProtocol.shutdown()
+        registeredDeviceIPs.removeAll()
 
         isScanning = true
         statusMessage = "Scanning for devices…"
         deviceDiscovery.startBrowsing()
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
-            self?.isScanning = false
-            if self?.devices.isEmpty == true {
-                self?.statusMessage = "No devices found. Check network connection."
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4) { [weak self] in
+            guard let self = self else { return }
+            self.isScanning = false
+            if self.devices.isEmpty {
+                self.statusMessage = "No devices found. Check network connection."
             } else {
-                let count = self?.devices.count ?? 0
-                self?.statusMessage = "\(count) device(s) found"
+                self.statusMessage = "\(self.devices.count) device(s) found"
+                for device in self.devices {
+                    self.registerBinaryDevice(device)
+                }
             }
         }
     }
@@ -107,16 +110,15 @@ class AppState: ObservableObject {
         }
     }
 
-    // MARK: - Query all device state
+    // MARK: - Query device state
 
-    func queryDeviceState(_ device: SennheiserDevice) {
+    private func querySSCState(_ device: SennheiserDevice) {
         let p = sennheiserProtocol
         let id = device.id
 
         p.queryName(device: device) { [weak self] r in
             if case .success(let v) = r { self?.mainUpdate(id) { $0.name = v } }
         }
-        // Frequency returns freq + bank + channel in one response
         p.queryFrequencyInfo(device: device) { [weak self] r in
             if case .success(let info) = r {
                 self?.mainUpdate(id) {
@@ -136,68 +138,22 @@ class AppState: ObservableObject {
             if case .success(let v) = r { self?.mainUpdate(id) { $0.rfMute = v } }
         }
         p.queryEqualizer(device: device) { _ in }
-
-        // Establish binary connection early to receive state updates
-        _ = getBinaryConnection(for: device)
     }
 
-    // MARK: - Set individual parameters
-    // All setters update local state immediately, then send command in background.
-
-    func setDeviceName(_ device: SennheiserDevice, name: String) {
-        updateDevice(device.id) { $0.name = name }
-        sennheiserProtocol.setName(device: device, name: name) { [weak self] r in
-            if case .failure = r { DispatchQueue.main.async { self?.statusMessage = "Failed to set name" } }
-        }
+    func queryDeviceState(_ device: SennheiserDevice) {
+        querySSCState(device)
+        registerBinaryDevice(device)
     }
 
-    func setDeviceFrequency(_ device: SennheiserDevice, frequencyKHz: Int) {
-        updateDevice(device.id) { $0.frequencyKHz = frequencyKHz }
-        let mhz = Double(frequencyKHz) / 1000.0
-        statusMessage = "Frequency set to \(String(format: "%.3f MHz", mhz))"
-        sennheiserProtocol.setFrequency(device: device, frequencyKHz: frequencyKHz) { [weak self] r in
-            if case .failure(let e) = r { DispatchQueue.main.async { self?.statusMessage = "Error: \(e.localizedDescription)" } }
-        }
-    }
+    // MARK: - Binary protocol (shared socket on port 8133)
 
-    func setDeviceBank(_ device: SennheiserDevice, bank: Int) {
-        updateDevice(device.id) { $0.bank = bank }
-        sennheiserProtocol.setBank(device: device, bank: bank) { [weak self] r in
-            if case .failure = r { DispatchQueue.main.async { self?.statusMessage = "Failed to set bank" } }
-        }
-    }
+    private func registerBinaryDevice(_ device: SennheiserDevice) {
+        let ip = device.host
+        guard !registeredDeviceIPs.contains(ip) else { return }
+        registeredDeviceIPs.insert(ip)
 
-    func setDeviceChannel(_ device: SennheiserDevice, channel: Int) {
-        updateDevice(device.id) { $0.channel = channel }
-        sennheiserProtocol.setChannel(device: device, channel: channel) { [weak self] r in
-            if case .failure = r { DispatchQueue.main.async { self?.statusMessage = "Failed to set channel" } }
-        }
-    }
-
-    func setDeviceSensitivity(_ device: SennheiserDevice, dB: Int) {
-        updateDevice(device.id) { $0.sensitivity = dB }
-        sennheiserProtocol.setSensitivity(device: device, dB: dB) { _ in }
-    }
-
-    func setDeviceMode(_ device: SennheiserDevice, mode: SennheiserDevice.TxMode) {
-        updateDevice(device.id) { $0.mode = mode }
-        sennheiserProtocol.setMode(device: device, mode: mode) { _ in }
-    }
-
-    func setDeviceMute(_ device: SennheiserDevice, muted: Bool) {
-        updateDevice(device.id) { $0.rfMute = muted }
-        sennheiserProtocol.setMute(device: device, muted: muted) { _ in }
-    }
-
-    // MARK: - Binary protocol parameters (port 8133)
-
-    private func getBinaryConnection(for device: SennheiserDevice) -> BinaryProtocol {
-        if let existing = binaryConnections[device.id] {
-            return existing
-        }
-        let conn = BinaryProtocol()
         let deviceId = device.id
-        conn.onStateUpdate = { [weak self] state in
+        binaryProtocol.addDevice(ip: ip) { [weak self] state in
             self?.mainUpdate(deviceId) {
                 if !state.name.isEmpty { $0.name = state.name }
                 $0.frequencyKHz = state.frequencyKHz
@@ -209,7 +165,6 @@ class AppState: ObservableObject {
                 $0.rfPower = state.rfPower
                 $0.warningAfPeak = state.warnAfPeak
                 $0.warningRfMute = state.warnRfMute
-                // RX params: 0x00 = ignored (sync off), non-zero = synced value
                 let rawRxAutoLock = state.raw[39]
                 let rawBalance = state.raw[40]
                 let rawMode = state.raw[41]
@@ -230,121 +185,182 @@ class AppState: ObservableObject {
                 if rawSquelch != 0 { $0.rxSquelch = state.rxSquelch }
             }
         }
-        conn.connect(deviceIP: device.host)
-        binaryConnections[device.id] = conn
-        return conn
     }
+
+    // MARK: - Set individual parameters
+
+    func setDeviceName(_ device: SennheiserDevice, name: String) {
+        updateDevice(device.id) { $0.name = name }
+        sennheiserProtocol.setName(device: device, name: name) { [weak self] r in
+            if case .failure = r { DispatchQueue.main.async { self?.statusMessage = "Failed to set name" } }
+        }
+    }
+
+    func setDeviceBankChannel(_ device: SennheiserDevice, bank: Int, channel: Int, frequencyKHz: Int) {
+        updateDevice(device.id) { $0.bank = bank; $0.channel = channel; $0.frequencyKHz = frequencyKHz }
+        let mhz = Double(frequencyKHz) / 1000.0
+        statusMessage = "Bank \(bank) Ch \(channel) → \(String(format: "%.3f MHz", mhz))"
+        sennheiserProtocol.setFrequency(device: device, frequencyKHz: frequencyKHz) { [weak self] r in
+            if case .failure(let e) = r { DispatchQueue.main.async { self?.statusMessage = "Error: \(e.localizedDescription)" } }
+        }
+    }
+
+    func setDeviceFrequency(_ device: SennheiserDevice, frequencyKHz: Int) {
+        updateDevice(device.id) { $0.frequencyKHz = frequencyKHz }
+        let mhz = Double(frequencyKHz) / 1000.0
+        statusMessage = "Frequency set to \(String(format: "%.3f MHz", mhz))"
+        sennheiserProtocol.setFrequency(device: device, frequencyKHz: frequencyKHz) { [weak self] r in
+            if case .failure(let e) = r { DispatchQueue.main.async { self?.statusMessage = "Error: \(e.localizedDescription)" } }
+        }
+    }
+
+    func setDeviceBank(_ device: SennheiserDevice, bank: Int) {
+        let table = FrequencyTable.detectRange(frequencyKHz: device.frequencyKHz ?? 0)
+        let ch = device.channel ?? 1
+        if let freqKHz = table.frequency(bank: bank, channel: ch) {
+            updateDevice(device.id) { $0.bank = bank; $0.channel = ch }
+            setDeviceFrequency(device, frequencyKHz: freqKHz)
+        } else if let freqKHz = table.frequency(bank: bank, channel: 1) {
+            updateDevice(device.id) { $0.bank = bank; $0.channel = 1 }
+            setDeviceFrequency(device, frequencyKHz: freqKHz)
+        } else {
+            updateDevice(device.id) { $0.bank = bank }
+            statusMessage = "No frequency for Bank \(bank)"
+        }
+    }
+
+    func setDeviceChannel(_ device: SennheiserDevice, channel: Int) {
+        let table = FrequencyTable.detectRange(frequencyKHz: device.frequencyKHz ?? 0)
+        let bank = device.bank ?? 1
+        if let freqKHz = table.frequency(bank: bank, channel: channel) {
+            updateDevice(device.id) { $0.channel = channel }
+            setDeviceFrequency(device, frequencyKHz: freqKHz)
+        } else {
+            updateDevice(device.id) { $0.channel = channel }
+            statusMessage = "No frequency for Bank \(bank) Ch \(channel)"
+        }
+    }
+
+    func setDeviceSensitivity(_ device: SennheiserDevice, dB: Int) {
+        updateDevice(device.id) { $0.sensitivity = dB }
+        sennheiserProtocol.setSensitivity(device: device, dB: dB) { _ in }
+    }
+
+    func setDeviceMode(_ device: SennheiserDevice, mode: SennheiserDevice.TxMode) {
+        updateDevice(device.id) { $0.mode = mode }
+        sennheiserProtocol.setMode(device: device, mode: mode) { _ in }
+    }
+
+    func setDeviceMute(_ device: SennheiserDevice, muted: Bool) {
+        updateDevice(device.id) { $0.rfMute = muted }
+        sennheiserProtocol.setMute(device: device, muted: muted) { _ in }
+    }
+
+    // MARK: - Binary protocol parameters (port 8133)
 
     func setDeviceAutoLock(_ device: SennheiserDevice, locked: Bool) {
         updateDevice(device.id) { $0.autoLock = locked }
-        getBinaryConnection(for: device).setTxAutoLock(locked)
+        binaryProtocol.setTxAutoLock(deviceIP: device.host, locked)
     }
 
     func setDeviceRfPower(_ device: SennheiserDevice, mW: Int) {
         updateDevice(device.id) { $0.rfPower = mW }
-        getBinaryConnection(for: device).setRfPower(mW: mW)
+        binaryProtocol.setRfPower(deviceIP: device.host, mW: mW)
     }
 
     func setDeviceWarningAfPeak(_ device: SennheiserDevice, enabled: Bool) {
         updateDevice(device.id) { $0.warningAfPeak = enabled }
-        getBinaryConnection(for: device).setWarnAfPeak(enabled)
+        binaryProtocol.setWarnAfPeak(deviceIP: device.host, enabled)
     }
 
     func setDeviceWarningRfMute(_ device: SennheiserDevice, enabled: Bool) {
         updateDevice(device.id) { $0.warningRfMute = enabled }
-        getBinaryConnection(for: device).setWarnRfMute(enabled)
+        binaryProtocol.setWarnRfMute(deviceIP: device.host, enabled)
     }
 
     func setRxAutoLock(_ device: SennheiserDevice, locked: Bool) {
         updateDevice(device.id) { $0.rxAutoLock = locked }
-        getBinaryConnection(for: device).setRxAutoLock(locked: locked)
+        binaryProtocol.setRxAutoLock(deviceIP: device.host, locked: locked)
     }
 
     func setRxBalance(_ device: SennheiserDevice, value: Int) {
         updateDevice(device.id) { $0.rxBalance = value }
-        getBinaryConnection(for: device).setRxBalance(value)
+        binaryProtocol.setRxBalance(deviceIP: device.host, value)
     }
 
     func setRxMode(_ device: SennheiserDevice, mode: SennheiserDevice.RxMode) {
         updateDevice(device.id) { $0.rxMode = mode }
-        getBinaryConnection(for: device).setRxMode(stereo: mode == .stereo)
+        binaryProtocol.setRxMode(deviceIP: device.host, stereo: mode == .stereo)
     }
 
     func setRxLimiter(_ device: SennheiserDevice, value: Int) {
         updateDevice(device.id) { $0.rxLimiter = value }
-        getBinaryConnection(for: device).setRxLimiter(dB: value)
+        binaryProtocol.setRxLimiter(deviceIP: device.host, dB: value)
     }
 
     func setRxHighBoost(_ device: SennheiserDevice, enabled: Bool) {
         updateDevice(device.id) { $0.rxHighBoost = enabled }
-        getBinaryConnection(for: device).setRxHighBoost(enabled)
+        binaryProtocol.setRxHighBoost(deviceIP: device.host, enabled)
     }
 
     func setRxSquelch(_ device: SennheiserDevice, value: Int) {
         updateDevice(device.id) { $0.rxSquelch = value }
-        getBinaryConnection(for: device).setRxSquelch(dB: value)
+        binaryProtocol.setRxSquelch(deviceIP: device.host, dB: value)
     }
 
     // MARK: - RX Sync Enable/Ignore flags
-    // Value 0x00 = ignored (don't sync), non-zero = sync with this value
 
     func setRxAutoLockSync(_ device: SennheiserDevice, enabled: Bool) {
         updateDevice(device.id) { $0.rxAutoLockSync = enabled }
-        let conn = getBinaryConnection(for: device)
         if enabled {
-            conn.setRxAutoLock(locked: device.rxAutoLock)
+            binaryProtocol.setRxAutoLock(deviceIP: device.host, locked: device.rxAutoLock)
         } else {
-            conn.ignoreParameter(.rxAutoLock)
+            binaryProtocol.ignoreParameter(deviceIP: device.host, .rxAutoLock)
         }
     }
 
     func setRxBalanceSync(_ device: SennheiserDevice, enabled: Bool) {
         updateDevice(device.id) { $0.rxBalanceSync = enabled }
-        let conn = getBinaryConnection(for: device)
         if enabled {
-            conn.setRxBalance(device.rxBalance)
+            binaryProtocol.setRxBalance(deviceIP: device.host, device.rxBalance)
         } else {
-            conn.ignoreParameter(.rxBalance)
+            binaryProtocol.ignoreParameter(deviceIP: device.host, .rxBalance)
         }
     }
 
     func setRxModeSync(_ device: SennheiserDevice, enabled: Bool) {
         updateDevice(device.id) { $0.rxModeSync = enabled }
-        let conn = getBinaryConnection(for: device)
         if enabled {
-            conn.setRxMode(stereo: device.rxMode == .stereo)
+            binaryProtocol.setRxMode(deviceIP: device.host, stereo: device.rxMode == .stereo)
         } else {
-            conn.ignoreParameter(.rxMode)
+            binaryProtocol.ignoreParameter(deviceIP: device.host, .rxMode)
         }
     }
 
     func setRxLimiterSync(_ device: SennheiserDevice, enabled: Bool) {
         updateDevice(device.id) { $0.rxLimiterSync = enabled }
-        let conn = getBinaryConnection(for: device)
         if enabled {
-            conn.setRxLimiter(dB: device.rxLimiter)
+            binaryProtocol.setRxLimiter(deviceIP: device.host, dB: device.rxLimiter)
         } else {
-            conn.ignoreParameter(.rxLimiter)
+            binaryProtocol.ignoreParameter(deviceIP: device.host, .rxLimiter)
         }
     }
 
     func setRxHighBoostSync(_ device: SennheiserDevice, enabled: Bool) {
         updateDevice(device.id) { $0.rxHighBoostSync = enabled }
-        let conn = getBinaryConnection(for: device)
         if enabled {
-            conn.setRxHighBoost(device.rxHighBoost)
+            binaryProtocol.setRxHighBoost(deviceIP: device.host, device.rxHighBoost)
         } else {
-            conn.ignoreParameter(.rxHighBoost)
+            binaryProtocol.ignoreParameter(deviceIP: device.host, .rxHighBoost)
         }
     }
 
     func setRxSquelchSync(_ device: SennheiserDevice, enabled: Bool) {
         updateDevice(device.id) { $0.rxSquelchSync = enabled }
-        let conn = getBinaryConnection(for: device)
         if enabled {
-            conn.setRxSquelch(dB: device.rxSquelch)
+            binaryProtocol.setRxSquelch(deviceIP: device.host, dB: device.rxSquelch)
         } else {
-            conn.ignoreParameter(.rxSquelch)
+            binaryProtocol.ignoreParameter(deviceIP: device.host, .rxSquelch)
         }
     }
 
